@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Improved Duelingbook{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-b from-primary-700 to-primary-900 text-white py-20">
+    <div class="container mx-auto px-4 text-center">
+        <h1 class="text-4xl md:text-6xl font-bold mb-4">Welcome to Improved Duelingbook</h1>
+        <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Experience card dueling with smoother gameplay, better performance, and an enhanced user interface.</p>
+        <div class="flex flex-col md:flex-row justify-center gap-4">
+            <a href="/duels" class="px-8 py-3 bg-secondary-600 hover:bg-secondary-700 rounded-lg text-white font-bold transition shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                Find a Duel
+            </a>
+            <a href="/decks" class="px-8 py-3 bg-white text-primary-800 hover:bg-gray-100 rounded-lg font-bold transition shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                Build a Deck
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="py-16 bg-white">
+    <div class="container mx-auto px-4">
+        <h2 class="text-3xl font-bold text-center mb-12">Features</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="rounded-lg p-6 shadow-md hover:shadow-lg bg-gray-50 border border-gray-200 transition">
+                <div class="text-primary-600 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Faster Performance</h3>
+                <p class="text-gray-600">Enjoy smoother gameplay with reduced lag and fewer disconnects thanks to our optimized server architecture.</p>
+            </div>
+            
+            <div class="rounded-lg p-6 shadow-md hover:shadow-lg bg-gray-50 border border-gray-200 transition">
+                <div class="text-primary-600 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Modern UI</h3>
+                <p class="text-gray-600">Experience a completely redesigned interface that's intuitive, responsive, and works on all your devices.</p>
+            </div>
+            
+            <div class="rounded-lg p-6 shadow-md hover:shadow-lg bg-gray-50 border border-gray-200 transition">
+                <div class="text-primary-600 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Reliable Connections</h3>
+                <p class="text-gray-600">Our new server architecture provides stable connections and automatic reconnection if issues occur.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="py-16 bg-gray-100">
+    <div class="container mx-auto px-4">
+        <h2 class="text-3xl font-bold text-center mb-12">Latest Updates</h2>
+        
+        <div class="max-w-3xl mx-auto">
+            <div x-data="{ activeTab: 'news' }" class="mb-8">
+                <div class="flex border-b border-gray-300">
+                    <button 
+                        @click="activeTab = 'news'" 
+                        :class="{ 'border-b-2 border-primary-600 font-semibold': activeTab === 'news' }"
+                        class="px-4 py-2 text-lg focus:outline-none">
+                        News
+                    </button>
+                    <button 
+                        @click="activeTab = 'tournaments'" 
+                        :class="{ 'border-b-2 border-primary-600 font-semibold': activeTab === 'tournaments' }"
+                        class="px-4 py-2 text-lg focus:outline-none">
+                        Tournaments
+                    </button>
+                    <button 
+                        @click="activeTab = 'updates'" 
+                        :class="{ 'border-b-2 border-primary-600 font-semibold': activeTab === 'updates' }"
+                        class="px-4 py-2 text-lg focus:outline-none">
+                        Game Updates
+                    </button>
+                </div>
+                
+                <div x-show="activeTab === 'news'" class="mt-4 space-y-4">
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Welcome to Improved Duelingbook!</h3>
+                        <p class="text-sm text-gray-500">March 13, 2025</p>
+                        <p class="mt-2">We're excited to announce the launch of our improved platform with better performance and a sleek new design.</p>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-bold text-lg">10,000 Users Milestone</h3>
+                        <p class="text-sm text-gray-500">March 5, 2025</p>
+                        <p class="mt-2">We've reached 10,000 active users! Thank you for your support and feedback.</p>
+                    </div>
+                </div>
+                
+                <div x-show="activeTab === 'tournaments'" class="mt-4 space-y-4" style="display: none;">
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Weekend Tournament - March 16th</h3>
+                        <p class="text-sm text-gray-500">Registration Open</p>
+                        <p class="mt-2">Join our weekend tournament for a chance to win exclusive digital cards and profile badges.</p>
+                        <a href="/tournaments" class="mt-2 inline-block text-primary-600 hover:underline">Register Now</a>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Monthly Championship Results</h3>
+                        <p class="text-sm text-gray-500">March 1, 2025</p>
+                        <p class="mt-2">Congratulations to DuelistKing99 for winning the February Championship!</p>
+                    </div>
+                </div>
+                
+                <div x-show="activeTab === 'updates'" class="mt-4 space-y-4" style="display: none;">
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Version 2.0.1 Released</h3>
+                        <p class="text-sm text-gray-500">March 10, 2025</p>
+                        <p class="mt-2">Bug fixes for card animations and WebSocket reconnection issues.</p>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Version 2.0.0 Released</h3>
+                        <p class="text-sm text-gray-500">March 1, 2025</p>
+                        <p class="mt-2">Major update with completely redesigned UI and improved server architecture.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="py-16 bg-primary-800 text-white">
+    <div class="container mx-auto px-4 text-center">
+        <h2 class="text-3xl font-bold mb-8">Ready to Duel?</h2>
+        <a href="/register" class="px-8 py-3 bg-white text-primary-800 hover:bg-gray-100 rounded-lg font-bold transition shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+            Join Now - It's Free!
+        </a>
+        <p class="mt-4 text-primary-200">Join thousands of duelists already playing on our platform.</p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,199 @@
+<!-- Field zones for a player -->
+<div class="h-full grid grid-cols-5 gap-1 p-1">
+    {% set is_opponent = player_id|string != "1" %}
+    
+    <!-- First row: Spell/Trap zones (or Monster zones for opponent) -->
+    {% if not is_opponent %}
+        <!-- Spell/Trap zones -->
+        {% for position in range(1, 6) %}
+            {% set spell = game.players[player_id|string].field_spells.get(position|string, None) if player_id|string in game.players else None %}
+            {% set trap = game.players[player_id|string].field_traps.get(position|string, None) if player_id|string in game.players else None %}
+            {% set card = spell or trap %}
+            
+            <div 
+                class="h-full bg-blue-900 bg-opacity-25 rounded border border-blue-800 flex items-center justify-center relative"
+                data-position="{{ position }}"
+                hx-post="/api/game/{{ game.id }}/place-spell-trap"
+                hx-trigger="dragover:from(.card[draggable])"
+                hx-swap="none"
+            >
+                {% if card %}
+                    <div 
+                        class="w-12 h-16 rounded shadow {% if card.orientation == 'face_down' %}card-back{% endif %} transform hover:scale-105 transition-transform"
+                        data-card-id="{{ card.id }}"
+                        @click="document.dispatchEvent(new CustomEvent('card:select', {
+                            detail: {
+                                id: {{ card.id }},
+                                name: '{{ card.name }}',
+                                description: '{{ card.description }}',
+                                actions: [
+                                    {% if game.turn_player_id|int == player_id|int %}
+                                        {% if card.orientation == 'face_down' %}
+                                        { type: 'activate', label: 'Activate' },
+                                        {% endif %}
+                                    {% endif %}
+                                ]
+                            }
+                        }))"
+                    >
+                        {% if card.orientation != 'face_down' %}
+                            <img src="/static/images/cards/{{ card.id }}.jpg" alt="{{ card.name }}" class="w-full h-full rounded">
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <!-- Monster zones (opponent view) -->
+        {% for position in range(1, 6) %}
+            {% set monster = game.players[player_id|string].field_monsters.get(position|string, None) if player_id|string in game.players else None %}
+            <div 
+                class="h-full bg-red-900 bg-opacity-25 rounded border border-red-800 flex items-center justify-center relative"
+                data-position="{{ position }}"
+            >
+                {% if monster %}
+                    <div 
+                        class="w-12 h-16 rounded shadow {% if monster.orientation == 'face_down_defense' %}card-back{% endif %} {% if monster.orientation in ['face_up_defense', 'face_down_defense'] %}defense-position{% endif %} transform hover:scale-105 transition-transform"
+                        data-card-id="{{ monster.id }}"
+                        @click="document.dispatchEvent(new CustomEvent('card:select', {
+                            detail: {
+                                id: {{ monster.id }},
+                                name: '{{ monster.name }}',
+                                description: '{{ monster.description }}',
+                                actions: []
+                            }
+                        }))"
+                    >
+                        {% if monster.orientation != 'face_down_defense' %}
+                            <img src="/static/images/cards/{{ monster.id }}.jpg" alt="{{ monster.name }}" class="w-full h-full rounded">
+                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs px-1 flex justify-between">
+                                <span class="text-red-300">{{ monster.attack }}</span>
+                                <span class="text-blue-300">{{ monster.defense }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <!-- Extra and Field Spell zones (second row) -->
+    <div class="h-full bg-purple-900 bg-opacity-25 rounded border border-purple-800 flex items-center justify-center">
+        <div class="text-xs text-white opacity-50">Extra</div>
+    </div>
+    
+    <!-- Monster or Spell/Trap zones (depending on player) -->
+    {% if is_opponent %}
+        <!-- Spell/Trap zones (opponent view) -->
+        {% for position in range(1, 4) %}
+            {% set spell = game.players[player_id|string].field_spells.get(position|string, None) if player_id|string in game.players else None %}
+            {% set trap = game.players[player_id|string].field_traps.get(position|string, None) if player_id|string in game.players else None %}
+            {% set card = spell or trap %}
+            
+            <div 
+                class="h-full bg-blue-900 bg-opacity-25 rounded border border-blue-800 flex items-center justify-center relative"
+            >
+                {% if card %}
+                    <div 
+                        class="w-12 h-16 rounded shadow {% if card.orientation == 'face_down' %}card-back{% endif %} transform hover:scale-105 transition-transform"
+                        data-card-id="{{ card.id }}"
+                        @click="document.dispatchEvent(new CustomEvent('card:select', {
+                            detail: {
+                                id: {{ card.id }},
+                                name: '{{ card.name }}',
+                                description: '{{ card.description }}',
+                                actions: []
+                            }
+                        }))"
+                    >
+                        {% if card.orientation != 'face_down' %}
+                            <img src="/static/images/cards/{{ card.id }}.jpg" alt="{{ card.name }}" class="w-full h-full rounded">
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <!-- Monster zones -->
+        {% for position in range(1, 4) %}
+            {% set monster = game.players[player_id|string].field_monsters.get(position|string, None) if player_id|string in game.players else None %}
+            <div 
+                class="h-full bg-red-900 bg-opacity-25 rounded border border-red-800 flex items-center justify-center relative"
+                data-position="{{ position }}"
+                hx-post="/api/game/{{ game.id }}/place-monster"
+                hx-trigger="dragover:from(.card[draggable])"
+                hx-swap="none"
+            >
+                {% if monster %}
+                    <div 
+                        class="w-12 h-16 rounded shadow {% if monster.orientation == 'face_down_defense' %}card-back{% endif %} {% if monster.orientation in ['face_up_defense', 'face_down_defense'] %}defense-position{% endif %} transform hover:scale-105 transition-transform"
+                        data-card-id="{{ monster.id }}"
+                        @click="document.dispatchEvent(new CustomEvent('card:select', {
+                            detail: {
+                                id: {{ monster.id }},
+                                name: '{{ monster.name }}',
+                                description: '{{ monster.description }}',
+                                actions: [
+                                    {% if game.turn_player_id|int == player_id|int and game.phase == 'battle_phase' %}
+                                    { type: 'attack', label: 'Attack' },
+                                    {% endif %}
+                                    {% if monster.orientation == 'face_up_attack' %}
+                                    { type: 'change_to_defense', label: 'Change to Defense' },
+                                    {% endif %}
+                                    {% if monster.orientation == 'face_up_defense' %}
+                                    { type: 'change_to_attack', label: 'Change to Attack' },
+                                    {% endif %}
+                                ]
+                            }
+                        }))"
+                    >
+                        {% if monster.orientation != 'face_down_defense' %}
+                            <img src="/static/images/cards/{{ monster.id }}.jpg" alt="{{ monster.name }}" class="w-full h-full rounded">
+                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs px-1 flex justify-between">
+                                <span class="text-red-300">{{ monster.attack }}</span>
+                                <span class="text-blue-300">{{ monster.defense }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <!-- Field Spell zone -->
+    <div 
+        class="h-full bg-green-900 bg-opacity-25 rounded border border-green-800 flex items-center justify-center relative"
+        data-position="field"
+        hx-post="/api/game/{{ game.id }}/place-field-spell"
+        hx-trigger="dragover:from(.card[draggable])"
+        hx-swap="none"
+    >
+        {% set field_spell = game.players[player_id|string].field_spells.get('field', None) if player_id|string in game.players else None %}
+        {% if field_spell %}
+            <div 
+                class="w-12 h-16 rounded shadow {% if field_spell.orientation == 'face_down' %}card-back{% endif %} transform hover:scale-105 transition-transform"
+                data-card-id="{{ field_spell.id }}"
+                @click="document.dispatchEvent(new CustomEvent('card:select', {
+                    detail: {
+                        id: {{ field_spell.id }},
+                        name: '{{ field_spell.name }}',
+                        description: '{{ field_spell.description }}',
+                        actions: [
+                            {% if game.turn_player_id|int == player_id|int %}
+                                {% if field_spell.orientation == 'face_down' %}
+                                { type: 'activate', label: 'Activate' },
+                                {% endif %}
+                            {% endif %}
+                        ]
+                    }
+                }))"
+            >
+                {% if field_spell.orientation != 'face_down' %}
+                    <img src="/static/images/cards/{{ field_spell.id }}.jpg" alt="{{ field_spell.name }}" class="w-full h-full rounded">
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="text-xs text-white opacity-50">Field</div>
+        {% endif %}
+    </div>
+</div>

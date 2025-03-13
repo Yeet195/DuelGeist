@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Improved Duelingbook{% endblock %}</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                200: '#bae6fd',
+                300: '#7dd3fc',
+                400: '#38bdf8',
+                500: '#0ea5e9',
+                600: '#0284c7',
+                700: '#0369a1',
+                800: '#075985',
+                900: '#0c4a6e',
+              },
+              secondary: {
+                50: '#f5f3ff',
+                100: '#ede9fe',
+                200: '#ddd6fe',
+                300: '#c4b5fd',
+                400: '#a78bfa',
+                500: '#8b5cf6',
+                600: '#7c3aed',
+                700: '#6d28d9',
+                800: '#5b21b6',
+                900: '#4c1d95',
+              },
+              dark: {
+                50: '#f8fafc',
+                100: '#f1f5f9',
+                200: '#e2e8f0',
+                300: '#cbd5e1',
+                400: '#94a3b8',
+                500: '#64748b',
+                600: '#475569',
+                700: '#334155',
+                800: '#1e293b',
+                900: '#0f172a',
+              }
+            },
+          }
+        }
+      }
+    </script>
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.13.0/dist/cdn.min.js"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-dark-800 min-h-screen flex flex-col">
+    <!-- Navigation -->
+    <nav class="bg-dark-800 text-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                    <a href="/" class="text-xl font-bold text-white">Improved Duelingbook</a>
+                </div>
+                <div class="hidden md:flex space-x-4 items-center">
+                    <a href="/" class="px-3 py-2 rounded hover:bg-dark-700 transition">Home</a>
+                    <a href="/decks" class="px-3 py-2 rounded hover:bg-dark-700 transition">Deck Builder</a>
+                    <a href="/cards" class="px-3 py-2 rounded hover:bg-dark-700 transition">Card Database</a>
+                    <a href="/duels" class="px-3 py-2 rounded hover:bg-dark-700 transition">Find Duel</a>
+                    {% if user %}
+                        <a href="/profile" class="px-3 py-2 rounded hover:bg-dark-700 transition">{{ user.username }}</a>
+                        <a href="/logout" class="ml-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">Logout</a>
+                    {% else %}
+                        <a href="/login" class="px-4 py-2 rounded bg-dark-700 hover:bg-dark-600 transition">Login</a>
+                        <a href="/register" class="ml-2 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition">Register</a>
+                    {% endif %}
+                </div>
+                <!-- Mobile menu button -->
+                <div class="md:hidden" x-data="{ open: false }">
+                    <button @click="open = !open" class="text-white focus:outline-none">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <!-- Mobile menu -->
+                    <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-48 bg-dark-800 rounded-md shadow-lg py-1 z-50">
+                        <a href="/" class="block px-4 py-2 hover:bg-dark-700">Home</a>
+                        <a href="/decks" class="block px-4 py-2 hover:bg-dark-700">Deck Builder</a>
+                        <a href="/cards" class="block px-4 py-2 hover:bg-dark-700">Card Database</a>
+                        <a href="/duels" class="block px-4 py-2 hover:bg-dark-700">Find Duel</a>
+                        {% if user %}
+                            <a href="/profile" class="block px-4 py-2 hover:bg-dark-700">{{ user.username }}</a>
+                            <a href="/logout" class="block px-4 py-2 hover:bg-dark-700 text-red-400">Logout</a>
+                        {% else %}
+                            <a href="/login" class="block px-4 py-2 hover:bg-dark-700">Login</a>
+                            <a href="/register" class="block px-4 py-2 hover:bg-dark-700 text-primary-400">Register</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark-800 text-white py-6 mt-auto">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p>&copy; DuelGeist</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="/about" class="hover:text-primary-300 transition">About</a>
+                    <a href="/terms" class="hover:text-primary-300 transition">Terms</a>
+                    <a href="/privacy" class="hover:text-primary-300 transition">Privacy</a>
+                    <a href="/contact" class="hover:text-primary-300 transition">Contact</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

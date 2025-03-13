@@ -1,0 +1,41 @@
+<!-- Player's hand of cards -->
+<div class="flex justify-center items-center h-full">
+    {% if player_id|string in game.players %}
+        <div class="flex space-x-1 px-2">
+            {% for card_id in game.players[player_id|string].hand %}
+                <div 
+                    class="w-14 h-20 rounded shadow bg-white transform hover:-translate-y-2 transition-transform cursor-pointer card-glow" 
+                    draggable="true"
+                    data-card-id="{{ card_id }}"
+                    @dragstart="event.dataTransfer.setData('card/id', '{{ card_id }}')"
+                    @click="document.dispatchEvent(new CustomEvent('card:select', {
+                        detail: {
+                            id: {{ card_id }},
+                            name: '{{ card_data[card_id|string].name }}',
+                            description: '{{ card_data[card_id|string].description }}',
+                            actions: [
+                                {% if game.turn_player_id|int == player_id|int and game.phase in ['main_phase_1', 'main_phase_2'] %}
+                                    {% if card_data[card_id|string].card_type == 'monster' %}
+                                    { type: 'summon', label: 'Normal Summon' },
+                                    { type: 'set', label: 'Set' },
+                                    {% elif card_data[card_id|string].card_type == 'spell' %}
+                                    { type: 'activate', label: 'Activate' },
+                                    { type: 'set', label: 'Set' },
+                                    {% elif card_data[card_id|string].card_type == 'trap' %}
+                                    { type: 'set', label: 'Set' },
+                                    {% endif %}
+                                {% endif %}
+                            ]
+                        }
+                    }))"
+                >
+                    <img src="/static/images/cards/{{ card_id }}.jpg" alt="{{ card_data[card_id|string].name }}" class="w-full h-full rounded">
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-gray-400 text-sm">
+            Waiting for player data...
+        </div>
+    {% endif %}
+</div>

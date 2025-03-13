@@ -1,0 +1,364 @@
+<!-- JavaScript for game functionality -->
+{% block scripts %}
+<script>
+    // Main game data and functions
+    function gameData() {
+        return {
+            gameId: {{ game_id }},
+            player: null,
+            opponent: null,
+            yourId: null,
+            opponentId: null,
+            selectedCard: null,
+            gameStatus: "Connecting...",
+            currentPhase: "",
+            isYourTurn: false,
+            socket: null,
+            
+            init() {
+                // Initialize WebSocket connection
+                this.connectWebSocket();
+                
+                // Listen for card selection events
+                document.addEventListener('card:select', (e) => {
+                    this.selectedCard = e.detail;
+                });
+            },
+            
+            connectWebSocket() {
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${wsProtocol}//${window.location.host}/ws/game/${this.gameId}`;
+                
+                this.socket = new WebSocket(wsUrl);
+                
+                this.socket.onopen = () => {
+                    console.log('WebSocket connection established');
+                    this.gameStatus = "Connected to game server";
+                    
+                    // Send player identification
+                    // In a real app, this would include authentication
+                    this.socket.send(JSON.stringify({
+                        action: "join_game",
+                        player_id: 1,  // In real app, this would be from auth
+                        username: "Player1"  // In real app, this would be from auth
+                    }));
+                };
+                
+                this.socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('WebSocket message received:', data);
+                    
+                    if (data.type === "game_update") {
+                        this.updateGameState(data.game);
+                        // Trigger HTMX updates
+                        document.body.dispatchEvent(new Event('gameUpdate'));
+                    } 
+                    else if (data.type === "player_joined") {
+                        this.gameStatus = `${data.username} joined the game`;
+                    }
+                    else if (data.type === "player_disconnect") {
+                        this.gameStatus = data.message;
+                    }
+                    else if (data.type === "error") {
+                        console.error('Game error:', data.message);
+                    }
+                };
+                
+                this.socket.onclose = () => {
+                    console.log('WebSocket connection closed');
+                    this.gameStatus = "Disconnected from game server";
+                    
+                    // Attempt to reconnect after delay
+                    setTimeout(() => {
+                        this.gameStatus = "Reconnecting...";
+                        this.connectWebSocket();
+                    }, 3000);
+                };
+                
+                this.socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    this.gameStatus = "Connection error";
+                };
+            },
+            
+            updateGameState(gameState) {
+                // Set your player ID (would be from auth in real app)
+                this.yourId = 1;  
+                
+                // Find players
+                for (const [playerId, playerData] of Object.entries(gameState.players)) {
+                    if (parseInt(playerId) === this.yourId) {
+                        this.player = playerData;
+                    } else {
+                        this.opponent = playerData;
+                        this.opponentId = parseInt(playerId);
+                    }
+                }
+                
+                // Update game status and turn info
+                this.gameStatus = gameState.status === "waiting" ? "Waiting for opponent" : 
+                                 gameState.status === "active" ? "Active" : "Completed";
+                this.currentPhase = gameState.phase.replace('_', ' ').toUpperCase();
+                this.isYourTurn = gameState.turn_player_id === this.yourId;
+            },
+            
+            sendAction(actionType, data = {}) {
+                if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+                    console.error('WebSocket not connected');
+                    return;
+                }
+                
+                const message = {
+                    action: actionType,
+                    player_id: this.yourId,
+                    ...data
+                };
+                
+                this.socket.send(JSON.stringify(message));
+            },
+            
+            performCardAction(cardId, actionType) {
+                this.sendAction('card_action', {
+                    card_id: cardId,
+                    action_type: actionType
+                });
+                
+                // Clear selection after action
+                this.selectedCard = null;
+            }
+        };
+    }
+</script>
+{% endblock %}{% extends "base.html" %}
+
+{% block title %}Game #{{ game_id }} - Improved Duelingbook{% endblock %}
+
+{% block extra_head %}
+<style>
+    .card-back {
+        background-image: repeating-linear-gradient(
+            45deg,
+            #334155,
+            #334155 5px,
+            #1e293b 5px,
+            #1e293b 10px
+        );
+    }
+    
+    /* Rotation for defense position cards */
+    .defense-position {
+        transform: rotate(90deg);
+    }
+    
+    /* Card shine effect */
+    .card-glow {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .card-glow::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+            to bottom right,
+            rgba(255,255,255,0) 0%,
+            rgba(255,255,255,0.1) 50%,
+            rgba(255,255,255,0) 100%
+        );
+        transform: rotate(30deg);
+        animation: shine 3s infinite;
+    }
+    
+    @keyframes shine {
+        0% { transform: translateX(-100%) rotate(30deg); }
+        100% { transform: translateX(100%) rotate(30deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="h-screen bg-gradient-to-b from-dark-700 to-dark-900 flex flex-col" x-data="gameData()">
+    <!-- Game header with info -->
+    <header class="bg-dark-800 text-white p-3 shadow-md flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-xl font-bold">Game #{{ game_id }}</h1>
+            <div class="bg-dark-600 px-3 py-1 rounded-full text-sm" x-text="gameStatus"></div>
+        </div>
+        <div class="bg-primary-900 px-3 py-1 rounded text-sm" x-text="currentPhase"></div>
+    </header>
+
+    <!-- Main game board area -->
+    <div class="flex flex-col flex-grow overflow-hidden">
+        <!-- Opponent area -->
+        <div class="h-2/5 flex flex-col p-2 border-b border-dark-600">
+            <div class="flex justify-between items-center bg-dark-700 text-white rounded p-2 mb-2">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold">
+                        <span x-text="opponent ? opponent.username.charAt(0).toUpperCase() : '?'"></span>
+                    </div>
+                    <span x-text="opponent ? opponent.username : 'Waiting for opponent...'"></span>
+                </div>
+                <div class="px-3 py-1 bg-green-800 rounded-full text-sm">
+                    <span x-text="opponent ? opponent.life_points + ' LP' : ''"></span>
+                </div>
+            </div>
+            
+            <!-- Opponent's card zones -->
+            <div class="flex-grow flex flex-col">
+                <!-- Field zones -->
+                <div 
+                    id="opponent-field" 
+                    class="flex-grow"
+                    hx-get="/partials/game/{{ game_id }}/field?player_id=:opponentId"
+                    hx-trigger="gameUpdate from:body"
+                    hx-swap="innerHTML">
+                    
+                    <!-- Loading state -->
+                    <div class="h-full flex items-center justify-center">
+                        <div class="bg-dark-800 bg-opacity-50 p-4 rounded-lg text-white">
+                            <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p>Loading opponent's field...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Opponent's hand (face down) -->
+                <div class="h-16 flex justify-center items-center bg-dark-800 bg-opacity-30 rounded mt-1 p-1">
+                    <template x-if="opponent">
+                        <div class="flex justify-center">
+                            <template x-for="i in opponent.hand.length" :key="i">
+                                <div class="w-10 h-14 card-back rounded shadow-md mx-[-5px] border border-gray-700"></div>
+                            </template>
+                        </div>
+                    </template>
+                    <div x-show="!opponent" class="text-gray-400 text-sm">
+                        Waiting for opponent...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Center area -->
+        <div class="h-1/5 flex p-2 border-b border-dark-600">
+            <!-- Game log -->
+            <div 
+                id="game-log" 
+                class="flex-grow bg-dark-800 bg-opacity-70 rounded mr-2 p-2 text-white text-sm overflow-y-auto"
+                hx-get="/partials/game/{{ game_id }}/log"
+                hx-trigger="gameUpdate from:body every 3s"
+                hx-swap="innerHTML">
+                <p class="opacity-70">Game started. Waiting for players...</p>
+            </div>
+            
+            <!-- Phase and turn controls -->
+            <div class="w-40 flex flex-col justify-center space-y-2">
+                <button 
+                    @click="sendAction('next_phase')" 
+                    class="w-full py-1 px-3 bg-primary-700 hover:bg-primary-600 disabled:bg-gray-600 text-white rounded shadow"
+                    x-bind:disabled="!isYourTurn">
+                    Next Phase
+                </button>
+                <button 
+                    @click="sendAction('end_turn')" 
+                    class="w-full py-1 px-3 bg-secondary-700 hover:bg-secondary-600 disabled:bg-gray-600 text-white rounded shadow"
+                    x-bind:disabled="!isYourTurn">
+                    End Turn
+                </button>
+            </div>
+        </div>
+        
+        <!-- Player area -->
+        <div class="h-2/5 flex flex-col p-2">
+            <!-- Player's card zones -->
+            <div class="flex-grow flex flex-col">
+                <!-- Player's hand -->
+                <div 
+                    id="player-hand" 
+                    class="h-20 flex justify-center items-center bg-dark-800 bg-opacity-30 rounded mb-1 p-1 overflow-x-auto"
+                    hx-get="/partials/game/{{ game_id }}/hand?player_id=:yourId"
+                    hx-trigger="gameUpdate from:body"
+                    hx-swap="innerHTML">
+                    
+                    <!-- Loading state -->
+                    <div class="flex items-center justify-center w-full">
+                        <div class="text-white">
+                            <svg class="animate-spin h-4 w-4 mx-auto mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p class="text-sm">Loading your hand...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Field zones -->
+                <div 
+                    id="player-field" 
+                    class="flex-grow"
+                    hx-get="/partials/game/{{ game_id }}/field?player_id=:yourId"
+                    hx-trigger="gameUpdate from:body"
+                    hx-swap="innerHTML">
+                    
+                    <!-- Loading state -->
+                    <div class="h-full flex items-center justify-center">
+                        <div class="bg-dark-800 bg-opacity-50 p-4 rounded-lg text-white">
+                            <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p>Loading your field...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Player info -->
+            <div class="flex justify-between items-center bg-dark-700 text-white rounded p-2 mt-2">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold">
+                        <span x-text="player ? player.username.charAt(0).toUpperCase() : '?'"></span>
+                    </div>
+                    <span x-text="player ? player.username : 'Connecting...'"></span>
+                </div>
+                <div class="px-3 py-1 bg-green-800 rounded-full text-sm">
+                    <span x-text="player ? player.life_points + ' LP' : ''"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Card detail display for selected card -->
+    <div 
+        id="card-detail" 
+        class="fixed bottom-4 right-4 w-64 bg-white rounded-lg shadow-lg overflow-hidden z-10"
+        x-show="selectedCard"
+        x-transition
+        @click.away="selectedCard = null">
+        <div x-show="selectedCard">
+            <div class="p-3 bg-primary-800 text-white">
+                <h3 class="font-bold" x-text="selectedCard?.name"></h3>
+            </div>
+            <div class="p-2">
+                <img :src="'/static/images/cards/' + selectedCard?.id + '.jpg'" alt="Card image" class="w-full rounded">
+                <p class="mt-2 text-sm text-gray-700" x-text="selectedCard?.description"></p>
+                
+                <!-- Action buttons that appear based on card context -->
+                <div class="mt-3 space-y-1" x-show="selectedCard?.actions?.length > 0">
+                    <template x-for="action in selectedCard?.actions" :key="action.type">
+                        <button 
+                            x-text="action.label" 
+                            @click="performCardAction(selectedCard.id, action.type)"
+                            class="w-full py-1 px-2 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded">
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>

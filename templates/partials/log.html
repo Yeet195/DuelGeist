@@ -1,0 +1,39 @@
+<!-- Game log content -->
+{% if game.action_history %}
+    {% for action in game.action_history %}
+        <div class="mb-1 {% if loop.last %}animate-pulse border-l-2 border-primary-500 pl-1{% endif %}">
+            <span class="text-gray-400 text-xs">{{ action.timestamp|time }}</span>
+            <span class="font-semibold">{{ game.players[action.player_id|string].username }}</span>
+            
+            {% if action.action_type == 'join_game' %}
+                <span class="text-blue-300">joined the game</span>
+            {% elif action.action_type == 'draw_card' %}
+                <span>drew a card</span>
+            {% elif action.action_type == 'summon' %}
+                <span>summoned <span class="text-yellow-300">{{ action.data.card_name }}</span></span>
+            {% elif action.action_type == 'set' %}
+                <span>set a card</span>
+            {% elif action.action_type == 'activate' %}
+                <span>activated <span class="text-blue-300">{{ action.data.card_name }}</span></span>
+            {% elif action.action_type == 'attack' %}
+                <span>attacked with <span class="text-red-300">{{ action.data.attacker_name }}</span>
+                {% if action.data.target_name %}
+                    targeting <span class="text-red-300">{{ action.data.target_name }}</span>
+                {% else %}
+                    directly
+                {% endif %}
+                </span>
+            {% elif action.action_type == 'next_phase' %}
+                <span>advanced to <span class="font-semibold text-purple-300">{{ action.data.phase|replace('_', ' ')|upper }}</span></span>
+            {% elif action.action_type == 'end_turn' %}
+                <span class="text-yellow-300">ended their turn</span>
+            {% else %}
+                <span>{{ action.action_type|replace('_', ' ') }}</span>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="text-center text-gray-400 italic text-sm">
+        Waiting for game actions...
+    </div>
+{% endif %}
