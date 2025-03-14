@@ -13,10 +13,22 @@
             </a>
             <span>Card Database</span>
             <span>/</span>
-            <span class="font-medium truncate max-w-sm">{{ card.name }}</span>
+            <span class="font-medium truncate max-w-sm">{{ card.name if card else "Card Not Found" }}</span>
         </div>
     </div>
 </div>
+
+{% if not card %}
+<div class="container mx-auto px-4 py-16 text-center">
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-8" role="alert">
+        <p class="font-bold">Card Not Found</p>
+        <p class="mt-2">The requested card could not be found in the database.</p>
+    </div>
+    <a href="/cards" class="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+        Return to Card Database
+    </a>
+</div>
+{% else %}
 
 <div class="container mx-auto px-4 py-8">
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -42,7 +54,7 @@
                 <div class="flex flex-wrap gap-2 mb-4">
                     <!-- Card type -->
                     <span class="px-3 py-1 bg-dark-800 text-white rounded-full text-sm">
-                        {{ card.type }}
+                        {{ card.type if card.type else card.humanReadableCardType | default("Card") }}
                     </span>
                     
                     <!-- Card Race/Type -->
@@ -68,7 +80,7 @@
                 </div>
                 
                 <!-- Monster stats (if applicable) -->
-                {% if "Monster" in card.type %}
+                {% if "Monster" in card.type or card.card_type == "monster" %}
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                     {% if card.level %}
                     <div>
@@ -136,6 +148,38 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
+                        
+                        <!-- Dropdown menu -->
+                        <div 
+                            x-show="open" 
+                            @click.away="open = false"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="transform opacity-0 scale-95"
+                            x-transition:enter-end="transform opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75"
+                            x-transition:leave-start="transform opacity-100 scale-100"
+                            x-transition:leave-end="transform opacity-0 scale-95"
+                            class="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+                        >
+                            <div class="py-1">
+                                <!-- This would be populated with user's decks -->
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My First Deck</a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Budget Deck</a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Tournament Deck</a>
+                                <div class="border-t border-gray-100"></div>
+                                <a href="/decks/new" class="block px-4 py-2 text-sm text-primary-600 hover:bg-gray-100">Create New Deck</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Watch replays button -->
+                    <button class="px-4 py-2 bg-secondary-600 text-white rounded shadow hover:bg-secondary-700 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Watch Replays
+                    </button>
                 </div>
                 
                 <!-- Card prices (if available) -->
@@ -197,36 +241,5 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
-                        
-                        <!-- Dropdown menu -->
-                        <div 
-                            x-show="open" 
-                            @click.away="open = false"
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="transform opacity-0 scale-95"
-                            x-transition:enter-end="transform opacity-100 scale-100"
-                            x-transition:leave="transition ease-in duration-75"
-                            x-transition:leave-start="transform opacity-100 scale-100"
-                            x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
-                        >
-                            <div class="py-1">
-                                <!-- This would be populated with user's decks -->
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My First Deck</a>
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Budget Deck</a>
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Tournament Deck</a>
-                                <div class="border-t border-gray-100"></div>
-                                <a href="/decks/new" class="block px-4 py-2 text-sm text-primary-600 hover:bg-gray-100">Create New Deck</a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Watch replays button -->
-                    <button class="px-4 py-2 bg-secondary-600 text-white rounded shadow hover:bg-secondary-700 flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Watch Replays
-                    </button>
