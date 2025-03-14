@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}{{ card.name }} - DuelGeist Card Database{% endblock %}
+
+{% block content %}
+<div class="bg-dark-900 text-white py-4">
+    <div class="container mx-auto px-4">
+        <div class="flex items-center space-x-2">
+            <a href="/cards" class="text-primary-400 hover:text-primary-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+            </a>
+            <span>Card Database</span>
+            <span>/</span>
+            <span class="font-medium truncate max-w-sm">{{ card.name }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="md:flex">
+            <!-- Card image -->
+            <div class="md:w-1/3 lg:w-1/4 flex justify-center p-6 bg-gray-50">
+                <div class="w-full max-w-xs">
+                    <div class="relative pb-[140%]">  <!-- 10:14 aspect ratio for cards -->
+                        <img 
+                            src="/static/images/cards/{{ card.id }}.jpg" 
+                            alt="{{ card.name }}"
+                            onerror="this.src='/static/images/card_back.jpg'"
+                            class="absolute inset-0 w-full h-full object-contain rounded-lg shadow-md"
+                        >
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card details -->
+            <div class="md:w-2/3 lg:w-3/4 p-6">
+                <h1 class="text-2xl md:text-3xl font-bold text-dark-800 mb-2">{{ card.name }}</h1>
+                
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <!-- Card type -->
+                    <span class="px-3 py-1 bg-dark-800 text-white rounded-full text-sm">
+                        {{ card.type }}
+                    </span>
+                    
+                    <!-- Card Race/Type -->
+                    {% if card.race %}
+                    <span class="px-3 py-1 bg-red-600 text-white rounded-full text-sm">
+                        {{ card.race }}
+                    </span>
+                    {% endif %}
+                    
+                    <!-- Attribute (if applicable) -->
+                    {% if card.attribute %}
+                    <span class="px-3 py-1 bg-purple-600 text-white rounded-full text-sm">
+                        {{ card.attribute }}
+                    </span>
+                    {% endif %}
+                    
+                    <!-- Archetype (if applicable) -->
+                    {% if card.archetype %}
+                    <span class="px-3 py-1 bg-green-600 text-white rounded-full text-sm">
+                        {{ card.archetype }}
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Monster stats (if applicable) -->
+                {% if "Monster" in card.type %}
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                    {% if card.level %}
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500">Level/Rank</h3>
+                        <p class="text-lg font-semibold">{{ card.level }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if card.atk is defined %}
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500">ATK</h3>
+                        <p class="text-lg font-semibold">{{ card.atk }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if card.def is defined %}
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500">DEF</h3>
+                        <p class="text-lg font-semibold">{{ card.def }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if card.linkval is defined %}
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500">Link Rating</h3>
+                        <p class="text-lg font-semibold">{{ card.linkval }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <!-- Card description -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-medium text-gray-500 mb-2">Card Text</h3>
+                    <div class="p-4 bg-gray-50 rounded-md border border-gray-200">
+                        <p class="whitespace-pre-line">{{ card.desc }}</p>
+                    </div>
+                </div>
+                
+                <!-- Card sets (if available) -->
+                {% if card.card_sets %}
+                <div class="mb-6">
+                    <h3 class="text-sm font-medium text-gray-500 mb-2">Card Sets</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {% for set in card.card_sets %}
+                        <div class="p-2 bg-gray-50 rounded border border-gray-200 text-sm">
+                            <div class="font-medium">{{ set.set_name }}</div>
+                            <div class="text-gray-500">{{ set.set_code }} · {{ set.set_rarity }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Action buttons -->
+                <div class="flex flex-wrap gap-3 mt-6">
+                    <!-- Add to deck button (with dropdown) -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="px-4 py-2 bg-primary-600 text-white rounded shadow hover:bg-primary-700 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Add to Deck
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                </div>
+                
+                <!-- Card prices (if available) -->
+                {% if card.card_prices %}
+                <div class="mt-8">
+                    <h3 class="text-sm font-medium text-gray-500 mb-2">Card Market Prices</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {% if card.card_prices[0].tcgplayer_price %}
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="text-xs text-gray-500">TCGPlayer</div>
+                            <div class="text-lg font-semibold">${{ card.card_prices[0].tcgplayer_price }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if card.card_prices[0].cardmarket_price %}
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="text-xs text-gray-500">Cardmarket</div>
+                            <div class="text-lg font-semibold">€{{ card.card_prices[0].cardmarket_price }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if card.card_prices[0].ebay_price %}
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="text-xs text-gray-500">eBay</div>
+                            <div class="text-lg font-semibold">${{ card.card_prices[0].ebay_price }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if card.card_prices[0].amazon_price %}
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="text-xs text-gray-500">Amazon</div>
+                            <div class="text-lg font-semibold">${{ card.card_prices[0].amazon_price }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related cards section -->
+    <div class="mt-12">
+        <h2 class="text-2xl font-bold mb-6">Related Cards</h2>
+        
+        <!-- This would need to be implemented with a related cards function in the card loader -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <!-- Placeholder for related cards -->
+            {% if card.archetype %}
+                <!-- In a real implementation, you would query for cards with the same archetype -->
+                <div class="text-center text-gray-500 col-span-full py-4">
+                    Cards from the "{{ card.archetype }}" archetype would be displayed here.
+                </div>
+            {% else %}
+                <div class="text-center text-gray-500 col-span-full py-4">
+                    No related cards found.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+                        
+                        <!-- Dropdown menu -->
+                        <div 
+                            x-show="open" 
+                            @click.away="open = false"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="transform opacity-0 scale-95"
+                            x-transition:enter-end="transform opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75"
+                            x-transition:leave-start="transform opacity-100 scale-100"
+                            x-transition:leave-end="transform opacity-0 scale-95"
+                            class="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+                        >
+                            <div class="py-1">
+                                <!-- This would be populated with user's decks -->
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My First Deck</a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Budget Deck</a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Tournament Deck</a>
+                                <div class="border-t border-gray-100"></div>
+                                <a href="/decks/new" class="block px-4 py-2 text-sm text-primary-600 hover:bg-gray-100">Create New Deck</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Watch replays button -->
+                    <button class="px-4 py-2 bg-secondary-600 text-white rounded shadow hover:bg-secondary-700 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Watch Replays
+                    </button>

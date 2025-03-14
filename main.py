@@ -1,13 +1,15 @@
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional, List, Dict, Any
 
 from app.api import users, decks, cards
 from app.ws.connection import ConnectionManager
 from app.models.game_pydantic import GameState
 from app.db.database import get_db, engine
 from app.db import crud
+from app.utils.card_loader import card_loader
 import app.models as models
 
 import uvicorn
@@ -59,6 +61,91 @@ async def home(request: Request):
 @app.get("/login")
 async def login(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
+
+@app.on_event("startup")
+async def startup_card_loader():
+    """Load cards on application startup"""
+    success = card_loader.load_cards("data/cards.json")
+    if not success:
+        logging.error("Failed to load card data. Check if cards.json exists.")
+
+# Card database page
+@app.get("/cards")
+async def card_database(
+    request: Request,
+    search: str = "",
+    card_type: str = "",
+    monster_type: str = "",
+    attribute: str = "", 
+    level: Optional[int] = None,  # Changed to accept None by default
+    page: int = 1
+):
+    # Set up pagination
+    items_per_page = 20
+    skip = (page - 1) * items_per_page
+    
+    # Add debugging to see what's being passed
+    logger.info(f"Search params - search: '{search}', card_type: '{card_type}', level: {level}, page: {page}")
+    
+    # Get cards using the JSON loader
+    cards = card_loader.search_cards(
+        name=search if search else None,
+        card_type=card_type if card_type else None,
+        monster_type=monster_type if monster_type else None,
+        attribute=attribute if attribute else None,
+        level=level,  # Level could be None
+        skip=skip,
+        limit=items_per_page
+    )
+    
+    # Get total count for pagination
+    total_count = card_loader.count_cards(
+        name=search if search else None,
+        card_type=card_type if card_type else None,
+        monster_type=monster_type if monster_type else None,
+        attribute=attribute if attribute else None,
+        level=level
+    )
+    
+    # Calculate pages
+    total_pages = (total_count + items_per_page - 1) // items_per_page
+    total_pages = max(1, total_pages)  # Ensure at least 1 page
+    
+    # Log results
+    logger.info(f"Search results: Found {total_count} cards, showing page {page} of {total_pages}")
+    
+    return templates.TemplateResponse(
+        "card_database.html",
+        {
+            "request": request,
+            "cards": cards,
+            "search": search,
+            "card_type": card_type,
+            "monster_type": monster_type,
+            "attribute": attribute,
+            "level": level,
+            "page": page,
+            "total_pages": total_pages,
+            "total_count": total_count
+        }
+    )
+    
+# Card details page
+@app.get("/cards/{card_id}")
+async def card_details(request: Request, card_id: str):
+    # Get card from JSON loader
+    card = card_loader.get_card(card_id)
+    
+    if not card:
+        return templates.TemplateResponse("404.html", {"request": request})
+    
+    return templates.TemplateResponse(
+        "card_details.html",
+        {
+            "request": request,
+            "card": card
+        }
+    )
 
 # Game page
 @app.get("/game/{game_id}")

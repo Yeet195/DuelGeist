@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy.orm import Session, relationship
+from sqlalchemy import or_, Column, Integer, String, Text, Enum, Boolean
 from typing import List, Dict, Any, Optional
 import hashlib
 
@@ -7,6 +7,9 @@ from app.models.user import User
 from app.models.card import Card, CardType, MonsterType, CardAttribute
 from app.models.deck import Deck, DeckCard
 from app.models.game import GameModel, GameStatus
+from app.db.database import Base
+
+import enum
 
 
 # User operations
