@@ -82,7 +82,7 @@ async def card_database(
     card_type: str = "",
     monster_type: str = "",
     attribute: str = "", 
-    level: Optional[str] = None,  # Changed from Optional[int] to Optional[str]
+    level: Optional[str] = None,
     page: int = 1,
     items_per_page: Optional[int] = None  # Add optional parameter for controlling items per page
 ):
@@ -394,6 +394,20 @@ async def websocket_game(websocket: WebSocket, game_id: int):
             game_id, 
             {"type": "player_disconnect", "message": "A player disconnected"}
         )
+        
+@app.get("/profile")
+async def profile_page(request: Request):
+    return templates.TemplateResponse("profile.html", {"request": request})
+
+@app.get("/profile/decks")
+async def profile_decks(request: Request):
+    return templates.TemplateResponse("profile.html", {"request": request})
+
+@app.get("/profile/decks/new")
+async def new_deck(request: Request):
+    # TODO
+    # Implement deck builder
+    return templates.TemplateResponse("profile.html", {"request": request})
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

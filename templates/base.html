@@ -66,41 +66,156 @@
                 <div class="flex items-center">
                     <a href="/" class="text-xl font-bold text-white">DuelGeist</a>
                 </div>
-                <div class="hidden md:flex space-x-4 items-center">
-                    <a href="/" class="px-3 py-2 rounded hover:bg-dark-700 transition">Home</a>
-                    <a href="/decks" class="px-3 py-2 rounded hover:bg-dark-700 transition">Deck Builder</a>
-                    <a href="/cards" class="px-3 py-2 rounded hover:bg-dark-700 transition">Card Database</a>
-                    <a href="/duels" class="px-3 py-2 rounded hover:bg-dark-700 transition">Find Duel</a>
-                    {% if user %}
-                        <a href="/profile" class="px-3 py-2 rounded hover:bg-dark-700 transition">{{ user.username }}</a>
-                        <a href="/logout" class="ml-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">Logout</a>
-                    {% else %}
-                        <a href="/login" class="px-4 py-2 rounded bg-dark-700 hover:bg-dark-600 transition">Login</a>
-                        <a href="/register" class="ml-2 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition">Register</a>
-                    {% endif %}
-                </div>
+                <!-- Replace the navigation section in templates/base.html -->
+				<div class="hidden md:flex space-x-4 items-center">
+					<a href="/" class="px-3 py-2 rounded hover:bg-dark-700 transition">Home</a>
+					<a href="/cards" class="px-3 py-2 rounded hover:bg-dark-700 transition">Card Database</a>
+					<a href="/duels" class="px-3 py-2 rounded hover:bg-dark-700 transition">Find Duel</a>
+					
+					<!-- User authentication - simplified implementation -->
+					<script>
+						// Simple function to check if user is logged in
+						function isLoggedIn() {
+							return !!localStorage.getItem('token');
+						}
+						
+						// Get username from localStorage
+						function getUsername() {
+							return localStorage.getItem('username') || 'User';
+						}
+						
+						// Logout function
+						function logout() {
+							localStorage.removeItem('token');
+							localStorage.removeItem('user_id');
+							localStorage.removeItem('username');
+							window.location.href = '/';
+						}
+					</script>
+					
+					<!-- Show login/register when not logged in -->
+					<div id="auth-buttons" style="display: none;">
+						<a href="/login" class="px-4 py-2 rounded bg-dark-700 hover:bg-dark-600 transition">Login</a>
+						<a href="/register" class="ml-2 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition">Register</a>
+					</div>
+					
+					<!-- Show profile when logged in -->
+					<div id="profile-dropdown" class="relative" style="display: none;">
+						<button id="profile-button" class="flex items-center space-x-2 px-3 py-2 rounded hover:bg-dark-700 transition">
+							<div class="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold">
+								<span id="profile-initial">?</span>
+							</div>
+							<span id="profile-username">User</span>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							</svg>
+						</button>
+						
+						<!-- Dropdown menu -->
+						<div id="profile-menu" class="absolute right-0 mt-2 w-48 bg-dark-800 rounded-md shadow-lg py-1 z-10" style="display: none;">
+							<a href="/profile" class="block px-4 py-2 hover:bg-dark-700">
+								Profile
+							</a>
+							<a href="/profile/decks" class="block px-4 py-2 hover:bg-dark-700">
+								My Decks
+							</a>
+							<a href="/profile/settings" class="block px-4 py-2 hover:bg-dark-700">
+								Settings
+							</a>
+							<div class="border-t border-dark-600 my-1"></div>
+							<a href="#" onclick="logout(); return false;" class="block px-4 py-2 hover:bg-dark-700 text-red-400">
+								Logout
+							</a>
+						</div>
+					</div>
+					
+					<!-- Initialize auth display -->
+					<script>
+						document.addEventListener('DOMContentLoaded', function() {
+							const authButtons = document.getElementById('auth-buttons');
+							const profileDropdown = document.getElementById('profile-dropdown');
+							const profileButton = document.getElementById('profile-button');
+							const profileMenu = document.getElementById('profile-menu');
+							const profileInitial = document.getElementById('profile-initial');
+							const profileUsername = document.getElementById('profile-username');
+							
+							// Update UI based on auth status
+							if (isLoggedIn()) {
+								authButtons.style.display = 'none';
+								profileDropdown.style.display = 'block';
+								
+								// Set profile info
+								const username = getUsername();
+								profileUsername.textContent = username;
+								profileInitial.textContent = username.charAt(0).toUpperCase();
+							} else {
+								authButtons.style.display = 'flex';
+								profileDropdown.style.display = 'none';
+							}
+							
+							// Toggle dropdown
+							if (profileButton) {
+								profileButton.addEventListener('click', function() {
+									profileMenu.style.display = profileMenu.style.display === 'none' ? 'block' : 'none';
+								});
+								
+								// Close dropdown when clicking elsewhere
+								document.addEventListener('click', function(event) {
+									if (!profileButton.contains(event.target) && !profileMenu.contains(event.target)) {
+										profileMenu.style.display = 'none';
+									}
+								});
+							}
+						});
+					</script>
+				</div>
                 <!-- Mobile menu button -->
-                <div class="md:hidden" x-data="{ open: false }">
-                    <button @click="open = !open" class="text-white focus:outline-none">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                        </svg>
-                    </button>
-                    <!-- Mobile menu -->
-                    <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-48 bg-dark-800 rounded-md shadow-lg py-1 z-50">
-                        <a href="/" class="block px-4 py-2 hover:bg-dark-700">Home</a>
-                        <a href="/decks" class="block px-4 py-2 hover:bg-dark-700">Deck Builder</a>
-                        <a href="/cards" class="block px-4 py-2 hover:bg-dark-700">Card Database</a>
-                        <a href="/duels" class="block px-4 py-2 hover:bg-dark-700">Find Duel</a>
-                        {% if user %}
-                            <a href="/profile" class="block px-4 py-2 hover:bg-dark-700">{{ user.username }}</a>
-                            <a href="/logout" class="block px-4 py-2 hover:bg-dark-700 text-red-400">Logout</a>
-                        {% else %}
-                            <a href="/login" class="block px-4 py-2 hover:bg-dark-700">Login</a>
-                            <a href="/register" class="block px-4 py-2 hover:bg-dark-700 text-primary-400">Register</a>
-                        {% endif %}
-                    </div>
-                </div>
+				<div class="md:hidden" x-data="{ open: false }">
+					<button @click="open = !open" class="text-white focus:outline-none">
+						<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+						</svg>
+					</button>
+					<!-- Mobile menu -->
+					<div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-48 bg-dark-800 rounded-md shadow-lg py-1 z-50">
+						<a href="/" class="block px-4 py-2 hover:bg-dark-700">Home</a>
+						<a href="/cards" class="block px-4 py-2 hover:bg-dark-700">Card Database</a>
+						<a href="/duels" class="block px-4 py-2 hover:bg-dark-700">Find Duel</a>
+						
+						<!-- Mobile auth section -->
+						<div id="mobile-auth-buttons" style="display: none;">
+							<div class="border-t border-dark-600 my-1"></div>
+							<a href="/login" class="block px-4 py-2 hover:bg-dark-700">Login</a>
+							<a href="/register" class="block px-4 py-2 hover:bg-dark-700 text-primary-400">Register</a>
+						</div>
+						
+						<!-- Mobile profile section -->
+						<div id="mobile-profile-links" style="display: none;">
+							<div class="border-t border-dark-600 my-1"></div>
+							<a href="/profile" class="block px-4 py-2 hover:bg-dark-700">Profile</a>
+							<a href="/profile/decks" class="block px-4 py-2 hover:bg-dark-700">My Decks</a>
+							<a href="/profile/settings" class="block px-4 py-2 hover:bg-dark-700">Settings</a>
+							<a href="#" onclick="logout(); return false;" class="block px-4 py-2 hover:bg-dark-700 text-red-400">Logout</a>
+						</div>
+					</div>
+					
+					<!-- Initialize mobile auth display -->
+					<script>
+						document.addEventListener('DOMContentLoaded', function() {
+							const mobileAuthButtons = document.getElementById('mobile-auth-buttons');
+							const mobileProfileLinks = document.getElementById('mobile-profile-links');
+							
+							// Update UI based on auth status
+							if (isLoggedIn()) {
+								mobileAuthButtons.style.display = 'none';
+								mobileProfileLinks.style.display = 'block';
+							} else {
+								mobileAuthButtons.style.display = 'block';
+								mobileProfileLinks.style.display = 'none';
+							}
+						});
+					</script>
+				</div>
             </div>
         </div>
     </nav>
