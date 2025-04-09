@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session, relationship
 from sqlalchemy import or_, Column, Integer, String, Text, Enum, Boolean
 from typing import List, Dict, Any, Optional
 import hashlib
+from passlib.context import CryptContext
 
 from app.models.user import User
 from app.models.card import Card, CardType, MonsterType, CardAttribute
@@ -11,6 +12,7 @@ from app.db.database import Base
 
 import enum
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # User operations
 def get_user(db: Session, user_id: int):
@@ -30,8 +32,8 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
 
 
 def create_user(db: Session, user: Dict[str, Any]):
-    # Hash the password - in production, use a proper password hashing library
-    hashed_password = hashlib.sha256(user["password"].encode()).hexdigest()
+    # Hash the password using bcrypt
+    hashed_password = pwd_context.hash(user["password"])
     
     db_user = User(
         username=user["username"],

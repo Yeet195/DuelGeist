@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from typing import Optional, List, Dict, Any
 
-from app.api import users, decks, cards
+from app.api import users, decks, cards, auth
 from app.ws.connection import ConnectionManager
 from app.models.game_pydantic import GameState
 from app.db.database import get_db, engine
@@ -52,6 +52,7 @@ active_games: Dict[int, GameState] = {}
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(decks.router, prefix="/api/decks", tags=["decks"])
 app.include_router(cards.router, prefix="/api/cards", tags=["cards"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 # Home page route
 @app.get("/")
@@ -62,6 +63,10 @@ async def home(request: Request):
 @app.get("/login")
 async def login(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/register")
+async def register(request: Request):
+    return templates.TemplateResponse("register.html", {"request": request})
 
 @app.on_event("startup")
 async def startup_card_loader():

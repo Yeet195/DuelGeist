@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Improved Duelingbook{% endblock %}
+{% block title %}Login - DuelGeist{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-gray-50 py-12 flex flex-col justify-center sm:px-6 lg:px-8">
@@ -18,8 +18,53 @@
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <div x-data="{ loading: false, error: false, errorMessage: '' }">
-                <form class="space-y-6" hx-post="/api/auth/login" hx-swap="none" @submit="loading = true" x-on:htmx:after-request="loading = false">
+            <div x-data="{ 
+                loading: false, 
+                error: false, 
+                errorMessage: '', 
+                formSubmitted: false 
+            }">
+                <form 
+                    id="loginForm" 
+                    hx-post="/api/auth/login" 
+                    hx-swap="none" 
+                    class="space-y-6"
+                    @submit.prevent="
+                        // Prevent multiple submissions
+                        if (formSubmitted || loading) return;
+                        
+                        // Reset error state and set loading
+                        error = false;
+                        loading = true;
+                        formSubmitted = true;
+                        
+                        // Submit the form via HTMX
+                        htmx.trigger('#loginForm', 'submit');
+                    "
+                    x-on:htmx:before-request="loading = true"
+                    x-on:htmx:after-request="loading = false"
+                    x-on:htmx:response-error="
+                        formSubmitted = false;
+                        error = true;
+                        try {
+                            errorMessage = JSON.parse(event.detail.xhr.responseText).detail;
+                        } catch(e) {
+                            errorMessage = 'Login failed. Please check your credentials.';
+                        }
+                    "
+                    x-on:htmx:response="
+                        // Handle successful login
+                        const response = JSON.parse(event.detail.xhr.responseText);
+                        
+                        // Store the auth token in localStorage
+                        localStorage.setItem('token', response.access_token);
+                        localStorage.setItem('user_id', response.user_id);
+                        localStorage.setItem('username', response.username);
+                        
+                        // Redirect to home page
+                        window.location.href = '/';
+                    "
+                >
                     <div>
                         <label for="username" class="block text-sm font-medium text-gray-700">
                             Username
@@ -58,7 +103,8 @@
 
                     <div>
                         <button type="submit" 
-                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 relative">
+                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 relative"
+                            x-bind:disabled="loading || formSubmitted">
                             <span x-show="!loading">Sign in</span>
                             <span x-show="loading" class="absolute inset-0 flex items-center justify-center">
                                 <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -69,6 +115,7 @@
                         </button>
                     </div>
                     
+                    <!-- Error message -->
                     <div x-show="error" class="rounded-md bg-red-50 p-4">
                         <div class="flex">
                             <div class="flex-shrink-0">
