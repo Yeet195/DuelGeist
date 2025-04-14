@@ -409,5 +409,9 @@ async def new_deck(request: Request):
     # Implement deck builder
     return templates.TemplateResponse("profile.html", {"request": request})
 
+@app.get("/deck-editor")
+async def deck_editor(request: Request, id: Optional[int] = None):
+    return templates.TemplateResponse("deck_editor.html", {"request": request})
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from fastapi import Depends, HTTPException, status
+from app.api.auth import get_current_user
 
+from app.models.user import User
 from app.db.database import get_db
 from app.db import crud
 from pydantic import BaseModel
@@ -45,19 +48,32 @@ class DeckResponse(DeckBase):
 
 
 @router.post("/", response_model=DeckResponse, status_code=status.HTTP_201_CREATED)
-def create_deck(deck: DeckCreate, user_id: int, db: Session = Depends(get_db)):
-    # In a real app, you'd get the user_id from the auth token
-    return crud.create_deck(db=db, deck=deck, user_id=user_id)
+def create_deck(
+    deck: DeckCreate, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new deck for the authenticated user"""
+    return crud.create_deck(db=db, deck=deck, user_id=current_user.id)
 
 
 @router.get("/", response_model=List[DeckResponse])
-def read_decks(skip: int = 0, limit: int = 100, user_id: int = None, db: Session = Depends(get_db)):
-    # Get all public decks or user's decks if user_id is provided
-    return crud.get_decks(db, skip=skip, limit=limit, user_id=user_id)
+def read_decks(
+    skip: int = 0, 
+    limit: int = 100, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all public decks or user's decks if user_id is provided"""
+    return crud.get_decks(db, skip=skip, limit=limit, user_id=current_user.id)
 
 
 @router.get("/{deck_id}", response_model=DeckResponse)
-def read_deck(deck_id: int, db: Session = Depends(get_db)):
+def read_deck(
+    deck_id: int, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     db_deck = crud.get_deck(db, deck_id=deck_id)
     if db_deck is None:
         raise HTTPException(
@@ -65,12 +81,23 @@ def read_deck(deck_id: int, db: Session = Depends(get_db)):
             detail="Deck not found"
         )
     
-    # In a real app, check if user can access this deck (owner or public)
+    # Check if user has permission to access this deck
+    if not db_deck.is_public and db_deck.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to access this deck"
+        )
+    
     return db_deck
 
 
 @router.put("/{deck_id}", response_model=DeckResponse)
-def update_deck(deck_id: int, deck: DeckCreate, db: Session = Depends(get_db)):
+def update_deck(
+    deck_id: int, 
+    deck: DeckCreate, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     db_deck = crud.get_deck(db, deck_id=deck_id)
     if db_deck is None:
         raise HTTPException(
@@ -78,12 +105,22 @@ def update_deck(deck_id: int, deck: DeckCreate, db: Session = Depends(get_db)):
             detail="Deck not found"
         )
     
-    # In a real app, check if user is the owner
+    # Check if user is the owner
+    if db_deck.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to update this deck"
+        )
+    
     return crud.update_deck(db=db, deck_id=deck_id, deck=deck)
 
 
 @router.delete("/{deck_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_deck(deck_id: int, db: Session = Depends(get_db)):
+def delete_deck(
+    deck_id: int, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     db_deck = crud.get_deck(db, deck_id=deck_id)
     if db_deck is None:
         raise HTTPException(
@@ -91,6 +128,12 @@ def delete_deck(deck_id: int, db: Session = Depends(get_db)):
             detail="Deck not found"
         )
     
-    # In a real app, check if user is the owner
+    # Check if user is the owner
+    if db_deck.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to delete this deck"
+        )
+    
     crud.delete_deck(db=db, deck_id=deck_id)
     return {"detail": "Deck deleted"}

@@ -1,0 +1,926 @@
+{% extends "base.html" %}
+
+{% block title %}Deck Editor - DuelGeist{% endblock %}
+
+{% block extra_head %}
+<style>
+    .card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .deck-zone {
+        min-height: 160px;
+        background-image: 
+            linear-gradient(rgba(17, 24, 39, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(17, 24, 39, 0.05) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+    
+    .deck-card {
+        transition: all 0.2s;
+    }
+    
+    .deck-card:hover {
+        z-index: 10;
+    }
+    
+    .search-results {
+        max-height: calc(100vh - 400px);
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-dark-800 text-white py-6">
+    <div class="container mx-auto px-4">
+        <h1 class="text-2xl md:text-3xl font-bold mb-2">Deck Editor</h1>
+        <p class="text-gray-300">Create and manage your dueling decks</p>
+    </div>
+</div>
+
+<div class="container mx-auto px-4 py-6" x-data="deckEditor()">
+    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+        <div class="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div>
+                    <label for="deck-name" class="block text-sm font-medium text-gray-700">Deck Name</label>
+                    <input type="text" id="deck-name" x-model="deck.name" 
+                        class="mt-1 block w-full sm:text-sm border-gray-300 rounded-md" 
+                        placeholder="My Awesome Deck">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Visibility</label>
+                    <select x-model="deck.is_public" class="mt-1 block w-full sm:text-sm border-gray-300 rounded-md">
+                        <option :value="false">Private</option>
+                        <option :value="true">Public</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button @click="saveDeck()" class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    Save Deck
+                </button>
+                <button @click="clearDeck()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                    Clear Deck
+                </button>
+            </div>
+        </div>
+        
+        <!-- Deck Stats -->
+        <div class="p-4 bg-gray-50 border-b border-gray-200">
+            <div class="flex flex-wrap justify-between">
+                <div class="flex space-x-4">
+                    <div>
+                        <span class="text-sm text-gray-500">Main Deck:</span>
+                        <span class="font-medium" x-text="countMainDeck()"></span>
+                        <span class="text-sm text-gray-500">/60</span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Extra Deck:</span>
+                        <span class="font-medium" x-text="countExtraDeck()"></span>
+                        <span class="text-sm text-gray-500">/15</span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Side Deck:</span>
+                        <span class="font-medium" x-text="countSideDeck()"></span>
+                        <span class="text-sm text-gray-500">/15</span>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <div>
+                        <span class="text-sm text-gray-500">Monsters:</span>
+                        <span class="font-medium" x-text="countCardType('monster')"></span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Spells:</span>
+                        <span class="font-medium" x-text="countCardType('spell')"></span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Traps:</span>
+                        <span class="font-medium" x-text="countCardType('trap')"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Deck Display -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Main Deck -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-3 bg-primary-700 text-white flex justify-between items-center">
+                    <h3 class="font-bold">Main Deck</h3>
+                    <span class="text-sm" x-text="countMainDeck() + ' cards'"></span>
+                </div>
+                <div class="p-4 deck-zone" @drop="dropCard($event, 'main')" @dragover.prevent>
+                    <div class="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1">
+                        <template x-for="card in sortedMainDeck()" :key="card.unique_id">
+                            <div 
+                                class="relative deck-card"
+                                draggable="true"
+                                @dragstart="dragCard($event, card)"
+                            >
+                                <div class="absolute top-0 right-0 w-5 h-5 bg-primary-600 text-white rounded-full text-xs flex items-center justify-center z-10" x-show="getCardCount(card.id, 'main') > 1">
+                                    <span x-text="getCardCount(card.id, 'main')"></span>
+                                </div>
+                                <img 
+                                    :src="'/static/images/cards/' + card.id + '.jpg'"
+                                    :alt="card.name"
+                                    @error="$event.target.src = '/static/images/card_back.jpg'"
+                                    class="w-full h-auto rounded cursor-pointer"
+                                    @click="selectCard(card)"
+                                >
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="countMainDeck() === 0" class="h-32 flex items-center justify-center text-gray-400">
+                        Drag cards here to build your Main Deck
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Extra Deck -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-3 bg-purple-700 text-white flex justify-between items-center">
+                    <h3 class="font-bold">Extra Deck</h3>
+                    <span class="text-sm" x-text="countExtraDeck() + ' cards'"></span>
+                </div>
+                <div class="p-4 deck-zone" @drop="dropCard($event, 'extra')" @dragover.prevent>
+                    <div class="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1">
+                        <template x-for="card in deck.extra_deck" :key="card.unique_id">
+                            <div 
+                                class="relative deck-card"
+                                draggable="true"
+                                @dragstart="dragCard($event, card)"
+                            >
+                                <div class="absolute top-0 right-0 w-5 h-5 bg-purple-600 text-white rounded-full text-xs flex items-center justify-center z-10" x-show="getCardCount(card.id, 'extra') > 1">
+                                    <span x-text="getCardCount(card.id, 'extra')"></span>
+                                </div>
+                                <img 
+                                    :src="'/static/images/cards/' + card.id + '.jpg'"
+                                    :alt="card.name"
+                                    @error="$event.target.src = '/static/images/card_back.jpg'"
+                                    class="w-full h-auto rounded cursor-pointer"
+                                    @click="selectCard(card)"
+                                >
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="countExtraDeck() === 0" class="h-20 flex items-center justify-center text-gray-400">
+                        Drag Extra Deck cards here (Fusion, Synchro, XYZ, Link monsters)
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Side Deck -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-3 bg-secondary-700 text-white flex justify-between items-center">
+                    <h3 class="font-bold">Side Deck</h3>
+                    <span class="text-sm" x-text="countSideDeck() + ' cards'"></span>
+                </div>
+                <div class="p-4 deck-zone" @drop="dropCard($event, 'side')" @dragover.prevent>
+                    <div class="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1">
+                        <template x-for="card in deck.side_deck" :key="card.unique_id">
+                            <div 
+                                class="relative deck-card"
+                                draggable="true"
+                                @dragstart="dragCard($event, card)"
+                            >
+                                <div class="absolute top-0 right-0 w-5 h-5 bg-secondary-600 text-white rounded-full text-xs flex items-center justify-center z-10" x-show="getCardCount(card.id, 'side') > 1">
+                                    <span x-text="getCardCount(card.id, 'side')"></span>
+                                </div>
+                                <img 
+                                    :src="'/static/images/cards/' + card.id + '.jpg'"
+                                    :alt="card.name"
+                                    @error="$event.target.src = '/static/images/card_back.jpg'"
+                                    class="w-full h-auto rounded cursor-pointer"
+                                    @click="selectCard(card)"
+                                >
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="countSideDeck() === 0" class="h-20 flex items-center justify-center text-gray-400">
+                        Drag cards here to build your Side Deck
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Card Search -->
+        <div class="space-y-6">
+            <!-- Search Box -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-3 bg-dark-700 text-white">
+                    <h3 class="font-bold">Card Search</h3>
+                </div>
+                <div class="p-4">
+                    <div class="mb-4">
+                        <label for="card-search" class="block text-sm font-medium text-gray-700 mb-1">Card Name</label>
+                        <input 
+                            type="text" 
+                            id="card-search" 
+                            x-model="searchParams.name" 
+                            @keyup.enter="searchCards()"
+                            class="block w-full border-gray-300 rounded-md shadow-sm" 
+                            placeholder="Search cards..."
+                        >
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="card-type" class="block text-sm font-medium text-gray-700 mb-1">Card Type</label>
+                            <select 
+                                id="card-type" 
+                                x-model="searchParams.card_type" 
+                                class="block w-full border-gray-300 rounded-md shadow-sm"
+                            >
+                                <option value="">All Types</option>
+                                <option value="monster">Monster</option>
+                                <option value="spell">Spell</option>
+                                <option value="trap">Trap</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="monster-type" class="block text-sm font-medium text-gray-700 mb-1">Monster Type</label>
+                            <select 
+                                id="monster-type" 
+                                x-model="searchParams.monster_type" 
+                                :disabled="searchParams.card_type !== 'monster' && searchParams.card_type !== ''"
+                                class="block w-full border-gray-300 rounded-md shadow-sm"
+                            >
+                                <option value="">Any</option>
+                                <option value="normal">Normal</option>
+                                <option value="effect">Effect</option>
+                                <option value="fusion">Fusion</option>
+                                <option value="ritual">Ritual</option>
+                                <option value="synchro">Synchro</option>
+                                <option value="xyz">XYZ</option>
+                                <option value="link">Link</option>
+                                <option value="spellcaster">Spellcaster</option>
+                                <option value="dragon">Dragon</option>
+                                <option value="zombie">Zombie</option>
+                                <option value="warrior">Warrior</option>
+                                <option value="beast">Beast</option>
+                                <option value="fiend">Fiend</option>
+                                <option value="fairy">Fairy</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button 
+                            @click="searchCards()" 
+                            class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
+                        >
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Results -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-3 bg-dark-700 text-white flex justify-between items-center">
+                    <h3 class="font-bold">Search Results</h3>
+                    <span class="text-sm" x-text="searchResults.length + ' cards'"></span>
+                </div>
+                <div class="p-4 search-results">
+                    <div class="grid grid-cols-3 sm:grid-cols-4 gap-2" x-show="!loading && searchResults.length > 0">
+                        <template x-for="card in searchResults" :key="card.id">
+                            <div 
+                                class="card-hover transform transition cursor-pointer relative"
+                                draggable="true"
+                                @dragstart="dragCard($event, card)"
+                                @click="addCardToDeck(card)"
+                            >
+                                <img 
+                                    :src="'/static/images/cards/' + card.id + '.jpg'"
+                                    :alt="card.name"
+                                    @error="$event.target.src = '/static/images/card_back.jpg'"
+                                    class="w-full h-auto rounded shadow"
+                                >
+                                <div 
+                                    class="absolute top-0 right-0 w-5 h-5 bg-primary-600 text-white rounded-full text-xs flex items-center justify-center"
+                                    x-show="totalCardCount(card.id) > 0 && totalCardCount(card.id) < 3"
+                                >
+                                    <span x-text="totalCardCount(card.id)"></span>
+                                </div>
+                                <div 
+                                    class="absolute inset-0 bg-red-500 bg-opacity-50 flex items-center justify-center rounded"
+                                    x-show="totalCardCount(card.id) >= 3"
+                                >
+                                    <span class="text-white font-bold">MAX</span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div x-show="loading" class="h-48 flex items-center justify-center">
+                        <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                    
+                    <div x-show="!loading && searchResults.length === 0" class="h-48 flex items-center justify-center text-gray-400">
+                        No cards found. Try a different search.
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card Details -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden" x-show="selectedCard !== null">
+                <div class="p-3 bg-dark-700 text-white">
+                    <h3 class="font-bold">Card Details</h3>
+                </div>
+                <div class="p-4">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="sm:w-1/3">
+                            <img 
+                                :src="selectedCard ? '/static/images/cards/' + selectedCard.id + '.jpg' : ''"
+                                :alt="selectedCard?.name"
+                                @error="$event.target.src = '/static/images/card_back.jpg'"
+                                class="w-full h-auto rounded shadow"
+                            >
+                        </div>
+                        
+                        <div class="sm:w-2/3">
+                            <h3 class="font-bold text-lg" x-text="selectedCard?.name"></h3>
+                            
+                            <div class="flex flex-wrap gap-2 my-2">
+                                <span class="px-2 py-0.5 bg-dark-700 text-white text-xs rounded" x-text="selectedCard?.card_type"></span>
+                                <span class="px-2 py-0.5 bg-red-600 text-white text-xs rounded" x-text="selectedCard?.attribute" x-show="selectedCard?.attribute"></span>
+                                <span class="px-2 py-0.5 bg-blue-600 text-white text-xs rounded" x-text="selectedCard?.level + '★'" x-show="selectedCard?.level"></span>
+                            </div>
+                            
+                            <div class="flex gap-4 my-2" x-show="selectedCard?.card_type === 'monster'">
+                                <span class="font-medium">ATK: <span x-text="selectedCard?.attack"></span></span>
+                                <span class="font-medium">DEF: <span x-text="selectedCard?.defense"></span></span>
+                            </div>
+                            
+                            <p class="text-sm mt-2" x-text="selectedCard?.description"></p>
+                            
+                            <div class="mt-4 flex gap-2">
+                                <button 
+                                    @click="addCardToDeck(selectedCard, 'main')" 
+                                    class="px-3 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700"
+                                    :disabled="selectedCard && totalCardCount(selectedCard.id) >= 3"
+                                >
+                                    Add to Main
+                                </button>
+                                <button 
+                                    @click="addCardToDeck(selectedCard, 'extra')" 
+                                    class="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
+                                    :disabled="selectedCard && (totalCardCount(selectedCard.id) >= 3 || !isExtraDeckCard(selectedCard))"
+                                    x-show="selectedCard && isExtraDeckCard(selectedCard)"
+                                >
+                                    Add to Extra
+                                </button>
+                                <button 
+                                    @click="addCardToDeck(selectedCard, 'side')" 
+                                    class="px-3 py-1 bg-secondary-600 text-white text-sm rounded hover:bg-secondary-700"
+                                    :disabled="selectedCard && totalCardCount(selectedCard.id) >= 3"
+                                >
+                                    Add to Side
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Success/Error Messages -->
+    <div 
+        x-show="notification.show" 
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 transform -translate-y-2"
+        x-transition:enter-end="opacity-100 transform translate-y-0"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100 transform translate-y-0"
+        x-transition:leave-end="opacity-0 transform -translate-y-2"
+        class="fixed top-4 right-4 bg-white rounded-lg shadow-lg p-4 w-80 border-l-4"
+        :class="notification.type === 'success' ? 'border-green-500' : 'border-red-500'"
+    >
+        <div class="flex items-start">
+            <div class="shrink-0">
+                <svg x-show="notification.type === 'success'" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <svg x-show="notification.type === 'error'" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium" x-text="notification.title"></h3>
+                <div class="mt-1 text-sm text-gray-600" x-text="notification.message"></div>
+            </div>
+            <button @click="notification.show = false" class="ml-auto text-gray-400 hover:text-gray-500">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function deckEditor() {
+        return {
+            deck: {
+                id: null,
+                name: "New Deck",
+                description: "",
+                is_public: false,
+                main_deck: [],
+                extra_deck: [],
+                side_deck: [],
+            },
+            searchParams: {
+                name: "",
+                card_type: "",
+                monster_type: "",
+                attribute: "",
+                level: ""
+            },
+            searchResults: [],
+            loading: false,
+            selectedCard: null,
+            notification: {
+                show: false,
+                type: "success",
+                title: "",
+                message: "",
+                timeout: null
+            },
+            
+            init() {
+                // Check if editing an existing deck and load it
+                const urlParams = new URLSearchParams(window.location.search);
+                const deckId = urlParams.get('id');
+                
+                if (deckId) {
+                    this.loadDeck(deckId);
+                }
+                
+                // Initial card search
+                this.searchCards();
+            },
+            
+            loadDeck(deckId) {
+                this.loading = true;
+                
+                fetch(`/api/decks/${deckId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("Failed to load deck");
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        this.deck.id = data.id;
+                        this.deck.name = data.name;
+                        this.deck.description = data.description || "";
+                        this.deck.is_public = data.is_public;
+                        
+                        // Clear existing cards
+                        this.deck.main_deck = [];
+                        this.deck.extra_deck = [];
+                        this.deck.side_deck = [];
+                        
+                        // Process cards from API response
+                        data.cards.forEach(cardData => {
+                            // Fetch card details
+                            fetch(`/api/cards/${cardData.card_id}`)
+                                .then(response => response.json())
+                                .then(cardDetails => {
+                                    // Add card with quantity
+                                    const card = {
+                                        ...cardDetails,
+                                        unique_id: cardData.id // Use the DeckCard ID as a unique identifier
+                                    };
+                                    
+                                    for (let i = 0; i < cardData.quantity; i++) {
+                                        const cardCopy = {...card, unique_id: card.unique_id + '_' + i};
+                                        
+                                        if (cardData.is_extra_deck) {
+                                            this.deck.extra_deck.push(cardCopy);
+                                        } else if (cardData.is_side_deck) {
+                                            this.deck.side_deck.push(cardCopy);
+                                        } else {
+                                            this.deck.main_deck.push(cardCopy);
+                                        }
+                                    }
+                                });
+                        });
+                        
+                        this.showNotification("success", "Deck Loaded", "Your deck has been loaded successfully.");
+                    })
+                    .catch(error => {
+                        console.error("Error loading deck:", error);
+                        this.showNotification("error", "Error Loading Deck", error.message);
+                    })
+                    .finally(() => {
+                        this.loading = false;
+                    });
+            },
+            
+            searchCards() {
+                this.loading = true;
+                
+                // Construct query parameters
+                const params = new URLSearchParams();
+                if (this.searchParams.name) params.append("name", this.searchParams.name);
+                if (this.searchParams.card_type) params.append("card_type", this.searchParams.card_type);
+                if (this.searchParams.monster_type && this.searchParams.card_type === "monster") {
+                    params.append("monster_type", this.searchParams.monster_type);
+                }
+                if (this.searchParams.attribute) params.append("attribute", this.searchParams.attribute);
+                if (this.searchParams.level) params.append("level", this.searchParams.level);
+                
+                // Call the API
+                fetch(`/api/cards/search?${params.toString()}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        this.searchResults = data;
+                    })
+                    .catch(error => {
+                        console.error("Error searching cards:", error);
+                        this.showNotification("error", "Search Error", "Failed to search cards. Please try again.");
+                    })
+                    .finally(() => {
+                        this.loading = false;
+                    });
+            },
+            
+            selectCard(card) {
+                this.selectedCard = card;
+            },
+            
+			addCardToDeck(card, deckType = "main") {
+                if (!card) return;
+                
+                // Check card limit (3 copies per deck)
+                if (this.totalCardCount(card.id) >= 3) {
+                    this.showNotification("error", "Card Limit Reached", "You can only have 3 copies of a card across all decks.");
+                    return;
+                }
+                
+                // Check deck size limits
+                if (deckType === "main" && this.countMainDeck() >= 60) {
+                    this.showNotification("error", "Deck Full", "Main Deck cannot exceed 60 cards.");
+                    return;
+                }
+                if (deckType === "extra" && this.countExtraDeck() >= 15) {
+                    this.showNotification("error", "Extra Deck Full", "Extra Deck cannot exceed 15 cards.");
+                    return;
+                }
+                if (deckType === "side" && this.countSideDeck() >= 15) {
+                    this.showNotification("error", "Side Deck Full", "Side Deck cannot exceed 15 cards.");
+                    return;
+                }
+                
+                // Verify card is appropriate for the deck type
+                if (deckType === "extra" && !this.isExtraDeckCard(card)) {
+                    this.showNotification("error", "Invalid Card", "This card cannot be added to the Extra Deck.");
+                    return;
+                }
+                
+                // Add a copy of the card with a unique ID
+                const cardCopy = {...card, unique_id: Date.now() + '-' + Math.random().toString(36).substr(2, 9)};
+                
+                if (deckType === "extra") {
+                    this.deck.extra_deck.push(cardCopy);
+                } else if (deckType === "side") {
+                    this.deck.side_deck.push(cardCopy);
+                } else {
+                    this.deck.main_deck.push(cardCopy);
+                }
+            },
+            
+            removeCardFromDeck(card) {
+                if (!card) return;
+                
+                // Find and remove the card from the appropriate deck
+                const mainIndex = this.deck.main_deck.findIndex(c => c.unique_id === card.unique_id);
+                if (mainIndex >= 0) {
+                    this.deck.main_deck.splice(mainIndex, 1);
+                    return;
+                }
+                
+                const extraIndex = this.deck.extra_deck.findIndex(c => c.unique_id === card.unique_id);
+                if (extraIndex >= 0) {
+                    this.deck.extra_deck.splice(extraIndex, 1);
+                    return;
+                }
+                
+                const sideIndex = this.deck.side_deck.findIndex(c => c.unique_id === card.unique_id);
+                if (sideIndex >= 0) {
+                    this.deck.side_deck.splice(sideIndex, 1);
+                    return;
+                }
+            },
+            
+            // Drag and drop functionality
+            dragCard(event, card) {
+                event.dataTransfer.setData("card", JSON.stringify(card));
+            },
+            
+            dropCard(event, deckType) {
+                event.preventDefault();
+                
+                try {
+                    const cardData = event.dataTransfer.getData("card");
+                    if (!cardData) return;
+                    
+                    const card = JSON.parse(cardData);
+                    
+                    // First remove the card from its current deck
+                    this.removeCardFromDeck(card);
+                    
+                    // Then add it to the target deck
+                    this.addCardToDeck(card, deckType);
+                } catch (error) {
+                    console.error("Error processing drag and drop:", error);
+                }
+            },
+            
+            // Count functions
+            countMainDeck() {
+                return this.deck.main_deck.length;
+            },
+            
+            countExtraDeck() {
+                return this.deck.extra_deck.length;
+            },
+            
+            countSideDeck() {
+                return this.deck.side_deck.length;
+            },
+            
+            countCardType(type) {
+                const mainDeckCount = this.deck.main_deck.filter(card => 
+                    card.card_type === type
+                ).length;
+                
+                const sideDeckCount = this.deck.side_deck.filter(card => 
+                    card.card_type === type
+                ).length;
+                
+                // For extra deck, only count monsters
+                const extraDeckCount = type === 'monster' ? this.deck.extra_deck.length : 0;
+                
+                return mainDeckCount + extraDeckCount + sideDeckCount;
+            },
+            
+            getCardCount(cardId, deckType) {
+                if (deckType === 'main') {
+                    return this.deck.main_deck.filter(card => card.id === cardId).length;
+                } else if (deckType === 'extra') {
+                    return this.deck.extra_deck.filter(card => card.id === cardId).length;
+                } else if (deckType === 'side') {
+                    return this.deck.side_deck.filter(card => card.id === cardId).length;
+                }
+                return 0;
+            },
+            
+            totalCardCount(cardId) {
+                return this.getCardCount(cardId, 'main') + 
+                       this.getCardCount(cardId, 'extra') + 
+                       this.getCardCount(cardId, 'side');
+            },
+            
+            // Utility functions
+            isExtraDeckCard(card) {
+                if (!card) return false;
+                
+                // Check if it's a monster first
+                if (card.card_type !== 'monster') return false;
+                
+                // Check monster types that go in extra deck
+                const extraDeckTypes = ['fusion', 'synchro', 'xyz', 'link'];
+                
+                // Check monster_type field first
+                if (card.monster_type && extraDeckTypes.includes(card.monster_type.toLowerCase())) {
+                    return true;
+                }
+                
+                // Fall back to checking the card type string
+                if (card.type) {
+                    const typeLower = card.type.toLowerCase();
+                    return extraDeckTypes.some(type => typeLower.includes(type));
+                }
+                
+                return false;
+            },
+            
+            sortedMainDeck() {
+                // Create a copy of the main deck to sort
+                const deck = [...this.deck.main_deck];
+                
+                // Sort by card type first, then by level/rank, then by name
+                return deck.sort((a, b) => {
+                    // Card type order: Monster > Spell > Trap
+                    const typeOrder = {
+                        'monster': 0,
+                        'spell': 1,
+                        'trap': 2
+                    };
+                    
+                    // Compare card types
+                    const typeA = a.card_type || 'other';
+                    const typeB = b.card_type || 'other';
+                    
+                    if (typeOrder[typeA] !== typeOrder[typeB]) {
+                        return typeOrder[typeA] - typeOrder[typeB];
+                    }
+                    
+                    // For monsters, sort by level/rank
+                    if (typeA === 'monster') {
+                        const levelA = a.level || 0;
+                        const levelB = b.level || 0;
+                        
+                        if (levelA !== levelB) {
+                            return levelB - levelA; // Higher level first
+                        }
+                    }
+                    
+                    // Finally sort by name
+                    return (a.name || '').localeCompare(b.name || '');
+                });
+            },
+            
+            // Clear the deck
+            clearDeck() {
+                if (confirm("Are you sure you want to clear this deck? All cards will be removed.")) {
+                    this.deck.main_deck = [];
+                    this.deck.extra_deck = [];
+                    this.deck.side_deck = [];
+                    this.showNotification("success", "Deck Cleared", "Your deck has been cleared.");
+                }
+            },
+            
+            // Save deck to database
+            saveDeck() {
+                if (!this.deck.name) {
+                    this.showNotification("error", "Invalid Deck Name", "Please provide a name for your deck.");
+                    return;
+                }
+                
+                // Validate deck
+                if (this.countMainDeck() < 40) {
+                    this.showNotification("error", "Invalid Deck", "Main Deck must have at least 40 cards.");
+                    return;
+                }
+                
+                // Get the user ID from localStorage
+                const userId = localStorage.getItem('user_id');
+                if (!userId) {
+                    this.showNotification("error", "Authentication Error", "You must be logged in to save a deck.");
+                    return;
+                }
+                
+                // Get the authentication token
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    this.showNotification("error", "Authentication Error", "Your session has expired. Please log in again.");
+                    return;
+                }
+                
+                // Format deck data for API
+                const deckData = {
+                    name: this.deck.name,
+                    description: this.deck.description,
+                    is_public: this.deck.is_public,
+                    cards: []
+                };
+                
+                // Process main deck cards
+                const mainDeckCards = {};
+                this.deck.main_deck.forEach(card => {
+                    if (!mainDeckCards[card.id]) {
+                        mainDeckCards[card.id] = {
+                            card_id: card.id,
+                            quantity: 1,
+                            is_main_deck: true,
+                            is_extra_deck: false,
+                            is_side_deck: false
+                        };
+                    } else {
+                        mainDeckCards[card.id].quantity++;
+                    }
+                });
+                
+                // Process extra deck cards
+                const extraDeckCards = {};
+                this.deck.extra_deck.forEach(card => {
+                    if (!extraDeckCards[card.id]) {
+                        extraDeckCards[card.id] = {
+                            card_id: card.id,
+                            quantity: 1,
+                            is_main_deck: false,
+                            is_extra_deck: true,
+                            is_side_deck: false
+                        };
+                    } else {
+                        extraDeckCards[card.id].quantity++;
+                    }
+                });
+                
+                // Process side deck cards
+                const sideDeckCards = {};
+                this.deck.side_deck.forEach(card => {
+                    if (!sideDeckCards[card.id]) {
+                        sideDeckCards[card.id] = {
+                            card_id: card.id,
+                            quantity: 1,
+                            is_main_deck: false,
+                            is_extra_deck: false,
+                            is_side_deck: true
+                        };
+                    } else {
+                        sideDeckCards[card.id].quantity++;
+                    }
+                });
+                
+                // Combine all cards
+                deckData.cards = [
+                    ...Object.values(mainDeckCards),
+                    ...Object.values(extraDeckCards),
+                    ...Object.values(sideDeckCards)
+                ];
+                
+                // Show loading state
+                this.loading = true;
+                
+                const url = this.deck.id ? `/api/decks/${this.deck.id}` : `/api/decks`;
+                const method = this.deck.id ? 'PUT' : 'POST';
+                
+                // Make API call
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(deckData)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Failed to save deck");
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update the deck ID if it was a new deck
+                    if (!this.deck.id) {
+                        this.deck.id = data.id;
+                        // Update URL without reloading page
+                        history.pushState({}, '', `/deck-editor?id=${data.id}`);
+                    }
+                    
+                    this.showNotification("success", "Deck Saved", "Your deck has been saved successfully.");
+                })
+                .catch(error => {
+                    console.error("Error saving deck:", error);
+                    this.showNotification("error", "Save Error", "Failed to save deck. Please try again.");
+                })
+                .finally(() => {
+                    this.loading = false;
+                });
+            },
+            
+            // Notification handling
+            showNotification(type, title, message) {
+                // Clear any existing timeout
+                if (this.notification.timeout) {
+                    clearTimeout(this.notification.timeout);
+                }
+                
+                // Set notification
+                this.notification.type = type;
+                this.notification.title = title;
+                this.notification.message = message;
+                this.notification.show = true;
+                
+                // Hide after 5 seconds
+                this.notification.timeout = setTimeout(() => {
+                    this.notification.show = false;
+                }, 5000);
+            }
+        };
+    }
+</script>
+{% endblock %}
