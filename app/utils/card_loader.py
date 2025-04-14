@@ -176,247 +176,146 @@ class CardLoader:
 			return ''
 	
 	def search_cards(self, 
-				name: Optional[str] = None,
-				card_type: Optional[str] = None,
-				monster_type: Optional[str] = None,
-				attribute: Optional[str] = None,
-				level: Optional[int] = None,
-				skip: int = 0,
-				limit: int = 100) -> List[Dict[str, Any]]:
+            name: Optional[str] = None,
+            card_type: Optional[str] = None,
+            monster_type: Optional[str] = None,
+            attribute: Optional[str] = None,
+            level: Optional[int] = None,
+            skip: int = 0,
+            limit: int = 100) -> List[Dict[str, Any]]:
 		"""
 		Search for cards with various filters, always returning the best possible results.
-		
-		Args:
-			name: Filter by card name (partial match)
-			card_type: Filter by card type (monster, spell, trap)
-			monster_type: Filter by monster type (Normal, Effect, etc.) or race
-			attribute: Filter by attribute (DARK, LIGHT, etc.)
-			level: Filter by monster level/rank
-			skip: Number of results to skip (for pagination)
-			limit: Maximum number of results to return
-			
-		Returns:
-			List of matching card dictionaries
 		"""
 		# Ensure cards are loaded
 		if not self._loaded and not self.load_cards():
 			return []
 			
-		# Handle empty or invalid parameters
-		skip = max(0, skip if isinstance(skip, int) else 0)
-		limit = max(1, min(1000, limit if isinstance(limit, int) else 100))
+		# Handle empty parameters
+		skip = max(0, skip)
+		limit = max(1, min(1000, limit))
 		
-		# Sanitize string parameters - empty strings, None, or non-string values should be treated as None
-		def sanitize_str(param):
-			if param is None or not isinstance(param, str) or param.strip() == '':
-				return None
-			return param.strip()
-			
-		name = sanitize_str(name)
-		card_type = sanitize_str(card_type)
-		monster_type = sanitize_str(monster_type)
-		attribute = sanitize_str(attribute)
-		
-		# Ensure level is an int or None
-		if level is not None:
-			try:
-				level = int(level)
-			except (ValueError, TypeError):
-				level = None
-			
 		# If all parameters are None, return all cards (with pagination)
-		if all(param is None for param in [name, card_type, monster_type, attribute, level]):
-			logger.debug("All search parameters are empty, returning all cards")
-			paginated_results = self._cards_list[skip:skip + limit]
-			return paginated_results
+		if name is None and card_type is None and monster_type is None and attribute is None and level is None:
+			return self._cards_list[skip:skip + limit]
 		
-		# Dictionary to track all matched cards and their match scores
-		# Higher score = better match
-		scored_cards = {}
+		# Make search terms case-insensitive
+		if name:
+			name = name.lower()
+		if card_type and isinstance(card_type, str):
+			card_type = card_type.lower()
+		if monster_type and isinstance(monster_type, str):
+			monster_type = monster_type.lower()
 		
-		# First pass: look for exact matches to all criteria
+		# Cards that match all criteria
 		exact_matches = []
+		# Cards that match some criteria
+		partial_matches = []
 		
 		for card in self._cards_list:
-			# Calculate match score for this card
+			# Score how well this card matches (higher is better)
 			score = 0
+			matches_all = True
 			
-			# Check name match - highest priority
-			name_match = False
+			# Name matching
 			if name:
-				# Different levels of name matching
 				card_name = card.get('name', '').lower()
-				search_name = name.lower()
-				
-				if card_name == search_name:  # Exact match
-					score += 100
-					name_match = True
-				elif card_name.startswith(search_name):  # Starts with search term
-					score += 75
-					name_match = True
-				elif search_name in card_name:  # Contains search term
-					score += 50
-					name_match = True
-				elif self._name_matches(card_name, search_name):  # Word match
-					score += 25
-					name_match = True
-					
-				# If name is provided but doesn't match at all, this card is irrelevant
-				if not name_match:
-					continue
+				if name == card_name:
+					score += 100  # Exact match
+				elif name in card_name:
+					score += 50   # Substring match
+				elif any(word in card_name for word in name.split()):
+					score += 25   # Any word matches
+				else:
+					matches_all = False
 			
-			# Check card type
-			card_type_match = False
+			# Card type matching
 			if card_type:
-				# Determine the card's type in multiple ways to be more robust
-				card_type_value = card_type.lower()
-				
-				# Method 1: Check the card_type field we added during processing
-				if 'card_type' in card and card_type_value == card['card_type'].lower():
+				card_type_val = card.get('card_type', '').lower()
+				if not card_type_val:
+					# Try to determine from type field
+					if 'type' in card:
+						if 'monster' in card['type'].lower():
+							card_type_val = 'monster'
+						elif 'spell' in card['type'].lower():
+							card_type_val = 'spell'
+						elif 'trap' in card['type'].lower():
+							card_type_val = 'trap'
+							
+				if card_type == card_type_val:
+					score += 30
+				else:
+					matches_all = False
+			
+			# Monster type matching
+			if monster_type and (not card_type or card_type == 'monster'):
+				found_match = False
+				# Check race field
+				if 'race' in card and monster_type in card['race'].lower():
 					score += 20
-					card_type_match = True
-				
-				# Method 2: Check the frameType field
-				elif 'frameType' in card:
-					ft = card['frameType'].lower()
-					if card_type_value == 'monster' and ft in ('normal', 'effect', 'ritual', 'fusion', 'synchro', 'xyz', 'link', 'token'):
-						score += 15
-						card_type_match = True
-					elif card_type_value == ft:
-						score += 20
-						card_type_match = True
-				
-				# Method 3: Check the type string
-				elif 'type' in card:
-					type_str = card['type'].lower()
-					if (card_type_value == 'monster' and 'monster' in type_str) or \
-					(card_type_value == 'spell' and 'spell' in type_str) or \
-					(card_type_value == 'trap' and 'trap' in type_str):
-						score += 15
-						card_type_match = True
-				
-				# If card_type is provided but doesn't match at all, consider skipping
-				if card_type_match:
-					score += 10  # Bonus for matching card type
-				elif card_type in ['monster', 'spell', 'trap']:
-					continue  # Skip if it's a main type and doesn't match
+					found_match = True
+				# Check type field
+				elif 'type' in card and monster_type in card['type'].lower():
+					score += 15
+					found_match = True
+				# Check monster_type field
+				elif 'monster_type' in card and monster_type in card.get('monster_type', '').lower():
+					score += 25
+					found_match = True
+					
+				if not found_match:
+					matches_all = False
 			
-			# Determine if this is a monster card for monster-specific filters
-			is_monster = False
-			if 'card_type' in card and card['card_type'] == 'monster':
-				is_monster = True
-			elif 'frameType' in card and card['frameType'].lower() in ('normal', 'effect', 'ritual', 'fusion', 'synchro', 'xyz', 'link', 'token'):
-				is_monster = True
-			elif 'type' in card and 'monster' in card['type'].lower():
-				is_monster = True
+			# Attribute matching
+			if attribute:
+				attr_value = card.get('attribute', '')
+				if isinstance(attr_value, str) and attribute.upper() == attr_value.upper():
+					score += 20
+				else:
+					matches_all = False
 			
-			# If we have monster-specific filters but this is not a monster, skip
-			if (monster_type or attribute or level is not None) and not is_monster:
-				continue
-			
-			# Only apply monster filters to monster cards
-			if is_monster:
-				# Check monster type/race
-				monster_type_match = False
-				if monster_type:
-					# Try to match in race or type fields
-					monster_type_value = monster_type.lower()
-					
-					# Check race field
-					if 'race' in card and monster_type_value in card['race'].lower():
-						score += 15
-						monster_type_match = True
-					
-					# Check type field (may contain type info)
-					elif 'type' in card and monster_type_value in card['type'].lower():
-						score += 10
-						monster_type_match = True
-					
-					# If monster_type is provided but doesn't match at all, this may not be what they want
-					if not monster_type_match:
-						score -= 5  # Penalty but don't exclude completely
-				
-				# Check attribute
-				attribute_match = False
-				if attribute:
-					# Try exact attribute match
-					if 'attribute' in card and attribute.upper() == card['attribute'].upper():
-						score += 15
-						attribute_match = True
-					
-					# If attribute is provided but doesn't match at all, this may not be what they want
-					if not attribute_match:
-						score -= 5  # Penalty but don't exclude completely
-				
-				# Check level
-				level_match = False
-				if level is not None:
-					# Cast level to int with fallback for missing or non-int values
+			# Level matching
+			if level is not None:
+				card_level = card.get('level')
+				# Convert string level to int if needed
+				if isinstance(card_level, str):
 					try:
-						card_level = int(card.get('level', 0))
-					except (ValueError, TypeError):
-						card_level = 0
+						card_level = int(card_level)
+					except ValueError:
+						card_level = None
 						
-					if card_level == level:
-						score += 15
-						level_match = True
-					elif card_level > 0:  # Card has a level but doesn't match
-						score -= 5  # Penalty but don't exclude completely
+				if card_level == level:
+					score += 20
+				else:
+					matches_all = False
 			
-			# Only add cards with a positive score
-			if score > 0:
-				# Record the card and its score
-				scored_cards[card['id']] = (card, score)
-				
-				# Keep track of exact matches
-				if (not name or name_match) and \
-				(not card_type or card_type_match) and \
-				(not monster_type or monster_type_match) and \
-				(not attribute or attribute_match) and \
-				(level is None or level_match):
-					exact_matches.append(card)
+			# Add to appropriate list based on match quality
+			if matches_all:
+				exact_matches.append(card)
+			elif score > 0:
+				partial_matches.append((card, score))
 		
 		# If we have exact matches, return those first
 		if exact_matches:
-			logger.debug(f"Found {len(exact_matches)} exact matches")
-			# Sort by name for consistency
-			exact_matches.sort(key=lambda c: c.get('name', ''))
 			return exact_matches[skip:skip + limit]
 		
-		# Sort results by score (highest first)
-		sorted_results = [
-			card for _, card in sorted(
-				[(score, card) for card, score in scored_cards.values()],
-				key=lambda x: x[0], 
-				reverse=True
-			)
-		]
+		# Otherwise, sort partial matches by score and return
+		if partial_matches:
+			partial_matches.sort(key=lambda x: x[1], reverse=True)
+			return [card for card, _ in partial_matches][skip:skip + limit]
 		
-		# If we have results from scoring, return those
-		if sorted_results:
-			logger.debug(f"Found {len(sorted_results)} scored matches")
-			return sorted_results[skip:skip + limit]
-		
-		# Last resort - fuzzy search if we have a name
-		if name and len(name) > 1:
-			logger.debug(f"Performing fuzzy search for name: {name}")
-			fuzzy_results = []
-			name_parts = name.lower().split()
-			
+		# If no matches at all, try a more lenient search with just the name
+		if name:
+			lenient_matches = []
 			for card in self._cards_list:
 				card_name = card.get('name', '').lower()
-				
-				# Check if any part of the search is in the card name
-				if any(part in card_name for part in name_parts):
-					fuzzy_results.append(card)
+				# Match if any part of the search is in the name
+				if any(part in card_name for part in name.split()):
+					lenient_matches.append(card)
 			
-			if fuzzy_results:
-				# Sort by name length (shorter names tend to be more relevant when doing fuzzy match)
-				fuzzy_results.sort(key=lambda c: len(c.get('name', '')))
-				return fuzzy_results[skip:skip + limit]
+			if lenient_matches:
+				return lenient_matches[skip:skip + limit]
 		
-		# If we still have no results, return a sample of all cards
-		logger.debug("No matches found, returning sample of all cards")
+		# If still no matches, return some cards to avoid empty results
 		return self._cards_list[skip:skip + limit]
 	
 	def count_cards(self,

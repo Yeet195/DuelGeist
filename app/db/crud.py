@@ -307,3 +307,85 @@ def complete_game(db: Session, game_id: int, winner_id: int):
     db.commit()
     db.refresh(db_game)
     return db_game
+
+def search_cards(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 100,
+    name: Optional[str] = None,
+    card_type: Optional[str] = None,
+    monster_type: Optional[str] = None,
+    attribute: Optional[str] = None,
+    level: Optional[int] = None,
+    attack: Optional[int] = None,
+    defense: Optional[int] = None,
+    description: Optional[str] = None
+):
+    """
+    Search for cards with multiple filters
+    """
+    query = db.query(Card)
+    
+    # Apply filters
+    if name:
+        query = query.filter(Card.name.ilike(f"%{name}%"))
+    
+    if card_type:
+        # Try to convert string to enum value
+        try:
+            card_type_enum = getattr(CardType, card_type.upper())
+            query = query.filter(Card.card_type == card_type_enum)
+        except (AttributeError, ValueError):
+            # If not a valid enum value, try a direct string comparison
+            query = query.filter(Card.card_type == card_type)
+    
+    if monster_type and card_type == 'monster':
+        try:
+            monster_type_enum = getattr(MonsterType, monster_type.upper())
+            query = query.filter(Card.monster_type == monster_type_enum)
+        except (AttributeError, ValueError):
+            query = query.filter(Card.monster_type == monster_type)
+    
+    if attribute:
+        try:
+            attribute_enum = getattr(CardAttribute, attribute.upper())
+            query = query.filter(Card.attribute == attribute_enum)
+        except (AttributeError, ValueError):
+            query = query.filter(Card.attribute == attribute)
+    
+    if level is not None:
+        query = query.filter(Card.level == level)
+    
+    if attack is not None:
+        query = query.filter(Card.attack == attack)
+    
+    if defense is not None:
+        query = query.filter(Card.defense == defense)
+    
+    if description:
+        query = query.filter(Card.description.ilike(f"%{description}%"))
+    
+    # Apply pagination
+    return query.offset(skip).limit(limit).all()
+
+def get_cards_count(
+    db: Session, 
+    name: Optional[str] = None,
+    card_type: Optional[str] = None
+):
+    """
+    Get the count of cards matching the filters
+    """
+    query = db.query(Card)
+    
+    if name:
+        query = query.filter(Card.name.ilike(f"%{name}%"))
+    
+    if card_type:
+        try:
+            card_type_enum = getattr(CardType, card_type.upper())
+            query = query.filter(Card.card_type == card_type_enum)
+        except (AttributeError, ValueError):
+            query = query.filter(Card.card_type == card_type)
+    
+    return query.count()
