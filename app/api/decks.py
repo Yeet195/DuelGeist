@@ -54,7 +54,16 @@ def create_deck(
     db: Session = Depends(get_db)
 ):
     """Create a new deck for the authenticated user"""
-    return crud.create_deck(db=db, deck=deck, user_id=current_user.id)
+    try:
+        print(f"Creating deck: {deck}")
+        print(f"User ID: {current_user.id}")
+        return crud.create_deck(db=db, deck=deck, user_id=current_user.id)
+    except Exception as e:
+        print(f"Error creating deck: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create deck: {str(e)}"
+        )
 
 
 @router.get("/", response_model=List[DeckResponse])

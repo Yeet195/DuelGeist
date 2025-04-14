@@ -397,11 +397,11 @@ async def websocket_game(websocket: WebSocket, game_id: int):
         
 @app.get("/profile")
 async def profile_page(request: Request):
-    return templates.TemplateResponse("profile.html", {"request": request})
+    return templates.TemplateResponse("profile.html", {"request": request, "activeTab": "overview"})
 
 @app.get("/profile/decks")
 async def profile_decks(request: Request):
-    return templates.TemplateResponse("profile.html", {"request": request})
+    return templates.TemplateResponse("profile.html", {"request": request, "activeTab": "decks"})
 
 @app.get("/profile/decks/new")
 async def new_deck(request: Request):
@@ -412,6 +412,29 @@ async def new_deck(request: Request):
 @app.get("/deck-editor")
 async def deck_editor(request: Request, id: Optional[int] = None):
     return templates.TemplateResponse("deck_editor.html", {"request": request})
+
+@app.get("/api/cards/search")
+async def search_cards_api(
+    request: Request,
+    name: Optional[str] = None,
+    card_type: Optional[str] = None,
+    monster_type: Optional[str] = None,
+    attribute: Optional[str] = None,
+    level: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 20
+):
+    cards = card_loader.search_cards(
+        name=name,
+        card_type=card_type,
+        monster_type=monster_type,
+        attribute=attribute,
+        level=level,
+        skip=skip,
+        limit=limit
+    )
+    
+    return cards
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

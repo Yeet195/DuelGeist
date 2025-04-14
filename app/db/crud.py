@@ -158,33 +158,48 @@ def get_decks(db: Session, skip: int = 0, limit: int = 100, user_id: Optional[in
     return query.offset(skip).limit(limit).all()
 
 
-def create_deck(db: Session, deck: Dict[str, Any], user_id: int):
-    db_deck = Deck(
-        name=deck["name"],
-        description=deck["description"],
-        is_public=deck["is_public"],
-        owner_id=user_id
-    )
-    
-    db.add(db_deck)
-    db.commit()
-    db.refresh(db_deck)
-    
-    # Add cards to the deck
-    for card in deck.get("cards", []):
-        db_deck_card = DeckCard(
-            deck_id=db_deck.id,
-            card_id=card["card_id"],
-            quantity=card["quantity"],
-            is_main_deck=card.get("is_main_deck", True),
-            is_extra_deck=card.get("is_extra_deck", False),
-            is_side_deck=card.get("is_side_deck", False)
+# In app/db/crud.py
+def create_deck(db: Session, deck, user_id: int):
+    """Create a deck and add cards to it"""
+    try:
+        # Convert to dict if it's a Pydantic model
+        if hasattr(deck, "dict"):
+            deck_data = deck.dict()
+        else:
+            deck_data = deck
+            
+        # Create the deck
+        db_deck = Deck(
+            name=deck_data["name"],
+            description=deck_data.get("description", ""),
+            is_public=deck_data.get("is_public", False),
+            owner_id=user_id
         )
-        db.add(db_deck_card)
+        
+        db.add(db_deck)
+        db.commit()
+        db.refresh(db_deck)
+        
+        # Add cards to the deck
+        for card in deck_data.get("cards", []):
+            db_deck_card = DeckCard(
+                deck_id=db_deck.id,
+                card_id=card["card_id"],
+                quantity=card.get("quantity", 1),
+                is_main_deck=card.get("is_main_deck", True),
+                is_extra_deck=card.get("is_extra_deck", False),
+                is_side_deck=card.get("is_side_deck", False)
+            )
+            db.add(db_deck_card)
+        
+        db.commit()
+        db.refresh(db_deck)
+        return db_deck
     
-    db.commit()
-    db.refresh(db_deck)
-    return db_deck
+    except Exception as e:
+        db.rollback()
+        print(f"Error in create_deck: {str(e)}")
+        raise
 
 
 def update_deck(db: Session, deck_id: int, deck: Dict[str, Any]):

@@ -3,30 +3,55 @@
 {% block title %}My Profile - DuelGeist{% endblock %}
 
 {% block content %}
-	<!-- Replace the empty state with this code -->
-	<div x-data="{ userDecks: [], loading: true }" x-init="
-		// Fetch user decks on page load if on the decks tab
-		if (activeTab === 'decks') {
-			const token = localStorage.getItem('token');
-			if (token) {
-				fetch('/api/decks', {
-					headers: { 'Authorization': `Bearer ${token}` }
-				})
-				.then(response => response.json())
-				.then(data => {
-					userDecks = data;
-					loading = false;
-				})
-				.catch(error => {
-					console.error('Error loading decks:', error);
-					loading = false;
-				});
-			} else {
-				loading = false;
+	<div x-data="{ 
+		activeTab: '{{ activeTab }}',
+		user: null,
+		loading: true,
+		userDecks: [],
+		init() {
+			// Get user data
+			const username = localStorage.getItem('username');
+			const userId = localStorage.getItem('user_id');
+			if (!username || !userId) {
+				window.location.href = '/login';
+				return;
 			}
+			
+			this.user = {
+				id: userId,
+				username: username
+			};
+			
+			// Load decks if on decks tab
+			if (this.activeTab === 'decks') {
+				this.loadDecks();
+			}
+			
+			this.loading = false;
+		},
+		loadDecks() {
+			const token = localStorage.getItem('token');
+			if (!token) return;
+			
+			this.loading = true;
+			fetch('/api/decks', {
+				headers: { 'Authorization': `Bearer ${token}` }
+			})
+			.then(response => {
+				if (!response.ok) throw new Error('Failed to load decks');
+				return response.json();
+			})
+			.then(data => {
+				this.userDecks = data;
+			})
+			.catch(error => {
+				console.error('Error loading decks:', error);
+			})
+			.finally(() => {
+				this.loading = false;
+			});
 		}
-	">
-		<!-- Loading state -->
+	}">
 		<div x-show="loading" class="text-center py-12">
 			<svg class="animate-spin h-8 w-8 mx-auto text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
 				<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
