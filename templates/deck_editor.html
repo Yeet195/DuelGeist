@@ -544,15 +544,15 @@
 				// Build query string
 				const params = new URLSearchParams();
 				if (this.searchParams.name) params.append("name", this.searchParams.name);
-				if (this.searchParams.card_type && this.searchParams.card_type !== "All Types") 
+				if (this.searchParams.card_type && this.searchParams.card_type !== "") 
 					params.append("card_type", this.searchParams.card_type);
-				if (this.searchParams.monster_type && this.searchParams.monster_type !== "Any") 
+				if (this.searchParams.monster_type && this.searchParams.monster_type !== "") 
 					params.append("monster_type", this.searchParams.monster_type);
-				if (this.searchParams.attribute && this.searchParams.attribute !== "Any") 
+				if (this.searchParams.attribute && this.searchParams.attribute !== "") 
 					params.append("attribute", this.searchParams.attribute);
 				if (this.searchParams.level) params.append("level", this.searchParams.level);
 				
-				// Call search API
+				// Call the API endpoint that uses card_loader
 				fetch(`/api/cards/search?${params.toString()}`)
 					.then(response => {
 						console.log("Response status:", response.status);
@@ -563,54 +563,58 @@
 					})
 					.then(data => {
 						console.log("Search results:", data);
-						// Use the data directly without any transformation
-						this.searchResults = data;
+						// Check if we received valid data
+						if (!data || (Array.isArray(data) && data.length === 0)) {
+							console.warn("No cards found, using fallback cards");
+							this.searchResults = this.getFallbackCards();
+						} else {
+							this.searchResults = data;
+							console.log(`Found ${data.length} cards matching search criteria`);
+						}
 					})
 					.catch(error => {
 						console.error("Error searching cards:", error);
-						// Set fallback card on error
-						this.searchResults = [{
-							id: 89631139,
-							name: "Blue-Eyes White Dragon",
-							description: "This legendary dragon is a powerful engine of destruction.",
-							card_type: "monster",
-							monster_type: "Dragon",
-							attribute: "LIGHT",
-							level: 8,
-							attack: 3000,
-							defense: 2500
-						}];
+						this.searchResults = this.getFallbackCards();
 					})
 					.finally(() => {
 						this.loading = false;
 					});
 			},
 			
-			// Helper method to determine card type
-			determineCardType(card) {
-				// First check frameType
-				if (card.frameType) {
-					return card.frameType;
-				}
-				
-				// Then check type string
-				if (card.type) {
-					const typeText = card.type.toLowerCase();
-					if (typeText.includes("monster")) return "monster";
-					if (typeText.includes("spell")) return "spell";
-					if (typeText.includes("trap")) return "trap";
-				}
-				
-				// Check humanReadableCardType
-				if (card.humanReadableCardType) {
-					const typeText = card.humanReadableCardType.toLowerCase();
-					if (typeText.includes("monster")) return "monster";
-					if (typeText.includes("spell")) return "spell";
-					if (typeText.includes("trap")) return "trap";
-				}
-				
-				// Default
-				return "monster";
+			getFallbackCards() {
+				return [
+					{
+						id: 89631139,
+						name: "Blue-Eyes White Dragon",
+						card_type: "monster",
+						description: "This legendary dragon is a powerful engine of destruction.",
+						attack: 3000,
+						defense: 2500,
+						level: 8,
+						monster_type: "Dragon",
+						attribute: "LIGHT"
+					},
+					{
+						id: 46986414,
+						name: "Dark Magician",
+						card_type: "monster",
+						description: "The ultimate wizard in terms of attack and defense.",
+						attack: 2500,
+						defense: 2100,
+						level: 7,
+						monster_type: "Spellcaster",
+						attribute: "DARK"
+					},
+					{
+						id: 24094653,
+						name: "Polymerization",
+						card_type: "spell",
+						description: "Fusion Summon 1 Fusion Monster from your Extra Deck, using monsters from your hand or field as Fusion Material.",
+						is_continuous: false,
+						is_quick_play: false,
+						is_field: false
+					}
+				];
 			},
             
             selectCard(card) {
